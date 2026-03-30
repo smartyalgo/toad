@@ -5,7 +5,9 @@ use crate::java;
 /// java/util/Optional
 pub struct Optional<T>(java::lang::Object, PhantomData<T>);
 
-impl<T> Optional<T> where T: java::Object
+impl<T> Optional<T>
+where
+  T: java::Object,
 {
   fn cast<R>(self) -> Optional<R> {
     Optional(self.0, PhantomData)
@@ -22,18 +24,20 @@ impl<T> Optional<T> where T: java::Object
   /// java.util.Optional$of
   pub fn of(e: &mut java::Env, t: T) -> Self {
     #[allow(clippy::type_complexity)]
-    static OF: java::StaticMethod<Optional<java::lang::Object>,
-                                    fn(java::lang::Object) -> Optional<java::lang::Object>> =
-      java::StaticMethod::new("of");
+    static OF: java::StaticMethod<
+      Optional<java::lang::Object>,
+      fn(java::lang::Object) -> Optional<java::lang::Object>,
+    > = java::StaticMethod::new("of");
     let t = t.downcast(e);
     OF.invoke(e, t).cast()
   }
 
   /// Create an empty instance of `Optional<T>`
   pub fn empty(e: &mut java::Env) -> Self {
-    static EMPTY: java::StaticMethod<Optional<java::lang::Object>,
-                                       fn() -> Optional<java::lang::Object>> =
-      java::StaticMethod::new("empty");
+    static EMPTY: java::StaticMethod<
+      Optional<java::lang::Object>,
+      fn() -> Optional<java::lang::Object>,
+    > = java::StaticMethod::new("empty");
     EMPTY.invoke(e).cast()
   }
 
@@ -68,12 +72,16 @@ impl<T> Optional<T> where T: java::Object
   }
 }
 
-impl<T> java::Class for Optional<T> where T: java::Object
+impl<T> java::Class for Optional<T>
+where
+  T: java::Object,
 {
   const PATH: &'static str = "java/util/Optional";
 }
 
-impl<T> java::Object for Optional<T> where T: java::Object
+impl<T> java::Object for Optional<T>
+where
+  T: java::Object,
 {
   fn upcast(_e: &mut java::Env, jobj: java::lang::Object) -> Self {
     Self(jobj, PhantomData)

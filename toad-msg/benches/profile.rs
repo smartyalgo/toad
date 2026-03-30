@@ -12,41 +12,59 @@ use common::*;
 
 fn profile(c: &mut Criterion) {
   type ArrayMessage = StackMessage<1024, 16, 128>;
-  let inp = TestInput { tkl: 8,
-                        n_opts: 16,
-                        opt_size: 128,
-                        payload_size: 1024 };
+  let inp = TestInput {
+    tkl: 8,
+    n_opts: 16,
+    opt_size: 128,
+    payload_size: 1024,
+  };
 
   let bytes: Vec<u8> = inp.get_bytes();
   let coap_lite_packet = coap_lite::Packet::from_bytes(&bytes).unwrap();
 
-  c.bench_with_input(BenchmarkId::new("msg/profile/to_bytes", "toad_msg/alloc"),
-                     &inp,
-                     |b, inp| {
-                       b.iter_batched(|| alloc::Message::from(inp),
-                                      |m| m.try_into_bytes::<Vec<u8>>().unwrap(),
-                                      BatchSize::SmallInput)
-                     });
-  c.bench_with_input(BenchmarkId::new("msg/profile/to_bytes", "toad_msg/no_alloc"),
-                     &inp,
-                     |b, inp| {
-                       b.iter_batched(|| ArrayMessage::from(inp),
-                                      |msg| msg.try_into_bytes::<ArrayVec<[u8; 3120]>>(),
-                                      BatchSize::SmallInput)
-                     });
-  c.bench_with_input(BenchmarkId::new("msg/profile/to_bytes", "coap_lite"),
-                     &coap_lite_packet,
-                     |b, packet| b.iter(|| packet.to_bytes()));
+  c.bench_with_input(
+    BenchmarkId::new("msg/profile/to_bytes", "toad_msg/alloc"),
+    &inp,
+    |b, inp| {
+      b.iter_batched(
+        || alloc::Message::from(inp),
+        |m| m.try_into_bytes::<Vec<u8>>().unwrap(),
+        BatchSize::SmallInput,
+      )
+    },
+  );
+  c.bench_with_input(
+    BenchmarkId::new("msg/profile/to_bytes", "toad_msg/no_alloc"),
+    &inp,
+    |b, inp| {
+      b.iter_batched(
+        || ArrayMessage::from(inp),
+        |msg| msg.try_into_bytes::<ArrayVec<[u8; 3120]>>(),
+        BatchSize::SmallInput,
+      )
+    },
+  );
+  c.bench_with_input(
+    BenchmarkId::new("msg/profile/to_bytes", "coap_lite"),
+    &coap_lite_packet,
+    |b, packet| b.iter(|| packet.to_bytes()),
+  );
 
-  c.bench_with_input(BenchmarkId::new("msg/profile/from_bytes", "toad_msg/alloc"),
-                     &bytes,
-                     |b, bytes| b.iter(|| alloc::Message::try_from_bytes(bytes)));
-  c.bench_with_input(BenchmarkId::new("msg/profile/from_bytes", "toad_msg/no_alloc"),
-                     &bytes,
-                     |b, bytes| b.iter(|| ArrayMessage::try_from_bytes(bytes)));
-  c.bench_with_input(BenchmarkId::new("msg/profile/from_bytes", "coap_lite"),
-                     &bytes,
-                     |b, bytes| b.iter(|| coap_lite::Packet::from_bytes(bytes)));
+  c.bench_with_input(
+    BenchmarkId::new("msg/profile/from_bytes", "toad_msg/alloc"),
+    &bytes,
+    |b, bytes| b.iter(|| alloc::Message::try_from_bytes(bytes)),
+  );
+  c.bench_with_input(
+    BenchmarkId::new("msg/profile/from_bytes", "toad_msg/no_alloc"),
+    &bytes,
+    |b, bytes| b.iter(|| ArrayMessage::try_from_bytes(bytes)),
+  );
+  c.bench_with_input(
+    BenchmarkId::new("msg/profile/from_bytes", "coap_lite"),
+    &bytes,
+    |b, bytes| b.iter(|| coap_lite::Packet::from_bytes(bytes)),
+  );
 }
 
 criterion_group! {
