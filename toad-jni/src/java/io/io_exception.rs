@@ -35,7 +35,8 @@ impl java::Class for IOException {
 }
 
 impl<StepError> toad::platform::PlatformError<StepError, Throwable> for IOException
-  where StepError: core::fmt::Debug
+where
+  StepError: core::fmt::Debug,
 {
   fn msg_to_bytes(e: toad_msg::to_bytes::MessageToBytesError) -> Self {
     Self::new(&mut java::env(), format!("{:?}", e))

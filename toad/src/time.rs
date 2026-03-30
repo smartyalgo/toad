@@ -28,14 +28,16 @@ impl<C: Clock, T: core::fmt::Debug> core::fmt::Debug for Stamped<C, T> {
     use core::fmt::Write;
 
     let mut instant = String::<100>::default();
-    write!(instant,
-           "<{}ms since epoch>",
-           Millis::try_from(self.1.duration_since_epoch()).unwrap())?;
+    write!(
+      instant,
+      "<{}ms since epoch>",
+      Millis::try_from(self.1.duration_since_epoch()).unwrap()
+    )?;
 
     f.debug_tuple("Stamped")
-     .field(&self.0)
-     .field(&instant)
-     .finish()
+      .field(&self.0)
+      .field(&instant)
+      .finish()
   }
 }
 
@@ -121,7 +123,10 @@ impl<C: Clock, T> Stamped<C, T> {
 
   /// TODO
   pub fn find_latest(winner: Option<Stamped<C, T>>, cur: Stamped<C, T>) -> Option<Stamped<C, T>> {
-    Some(winner.filter(|winner| winner.time() > cur.time())
-               .unwrap_or(cur))
+    Some(
+      winner
+        .filter(|winner| winner.time() > cur.time())
+        .unwrap_or(cur),
+    )
   }
 }

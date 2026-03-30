@@ -2,6 +2,7 @@
 name = "toad-common"
 version = "0.15.0"
 edition = "2021"
+rust-version = "1.70"
 description = "Common structs and abstractions used by toad"
 authors = ["Orion Kindel <cakekindel@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -22,5 +23,5 @@ test = []
 docs = []
 
 [dependencies]
-tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}
+tinyvec = {version = "1.5", default_features = false, features = ["alloc"]}
 blake2 = "0.10"

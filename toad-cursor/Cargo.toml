@@ -2,6 +2,7 @@
 name = "toad-cursor"
 version = "0.2.0"
 edition = "2021"
+rust-version = "1.70"
 description = "no_std Cursor struct"
 authors = ["Orion Kindel <cakekindel@gmail.com>"]
 license = "MIT OR Apache-2.0"

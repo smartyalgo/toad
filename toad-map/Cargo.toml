@@ -2,6 +2,7 @@
 name = "toad-map"
 version = "0.2.3"
 edition = "2021"
+rust-version = "1.70"
 description = "Map / Dictionary trait that is no_std and heap-allocator-optional"
 authors = ["Orion Kindel <cakekindel@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -22,5 +23,5 @@ test = []
 docs = []
 
 [dependencies]
-tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}
+tinyvec = {version = "1.5", default_features = false, features = ["alloc"]}
 toad-len = {version = "^0.1.2", default_features = false}
