@@ -15,9 +15,12 @@ pub fn main() {
   let server = P::try_new(server_addr, Config::default()).unwrap();
 
   let client = P::try_new(client_addr, Config::default()).unwrap();
-  client.send_msg(Addrd(Req::<T<dtls::N>>::get("hello").into(),
-                        server_addr.parse().unwrap()))
-        .unwrap();
+  client
+    .send_msg(Addrd(
+      Req::<T<dtls::N>>::get("hello").into(),
+      server_addr.parse().unwrap(),
+    ))
+    .unwrap();
 
   let req = nb::block!(server.poll_req()).unwrap();
   assert_eq!(req.data().path().ok().flatten(), Some("hello"));

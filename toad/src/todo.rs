@@ -54,7 +54,9 @@ impl<const N: usize> String<N> {
   pub fn resize<const M: usize>(&mut self) -> String<M> {
     let mut bytes = self.0.unwrap();
     bytes.truncate(M);
-    String(Writable::from(self.as_writable().drain(..).collect::<ArrayVec<[u8; M]>>()))
+    String(Writable::from(
+      self.as_writable().drain(..).collect::<ArrayVec<[u8; M]>>(),
+    ))
   }
 
   /// Alias for [`AsRef`]
@@ -145,9 +147,9 @@ pub(crate) trait NbResultExt<T, E> {
 impl<T, E> NbResultExt<T, E> for ::nb::Result<T, E> {
   fn perform_nb_err(self, f: impl FnOnce(&E) -> ()) -> ::nb::Result<T, E> {
     self.discard_err(|e: &::nb::Error<E>| match e {
-          | &::nb::Error::Other(ref e) => f(e),
-          | &::nb::Error::WouldBlock => (),
-        })
+      | &::nb::Error::Other(ref e) => f(e),
+      | &::nb::Error::WouldBlock => (),
+    })
   }
 
   #[cfg(feature = "std")]
@@ -177,20 +179,23 @@ pub(crate) mod nb {
     };
     ($stuff:expr, timeout_after = $duration:expr, timeout_err = $timeout_err:expr) => {{
       let start = ::std::time::Instant::now();
-      $crate::todo::nb::block!($stuff,
-                               with = || {
-                                 if ::std::time::Instant::now() - start > $duration {
-                                   Some(Err($timeout_err()))
-                                 } else {
-                                   None
-                                 }
-                               })
+      $crate::todo::nb::block!(
+        $stuff,
+        with = || {
+          if ::std::time::Instant::now() - start > $duration {
+            Some(Err($timeout_err()))
+          } else {
+            None
+          }
+        }
+      )
     }};
     ($stuff:expr, io_timeout_after = $duration:expr) => {
-      $crate::todo::nb::block!($stuff,
-                               timeout_after = $duration,
-                               timeout_err =
-                                 || ::std::io::Error::from(::std::io::ErrorKind::TimedOut))
+      $crate::todo::nb::block!(
+        $stuff,
+        timeout_after = $duration,
+        timeout_err = || ::std::io::Error::from(::std::io::ErrorKind::TimedOut)
+      )
     };
   }
 
