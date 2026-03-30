@@ -77,19 +77,20 @@ impl BigInteger {
       bytes.drain(0..first_nonzero_ix).for_each(|_| ());
     }
 
-    bytes.iter()
-         .map(|i| {
-           // https://docs.oracle.com/en/java/javase/19/docs/api/java.base/java/math/BigInteger.html#toByteArray()
-           //
-           // toByteArray returns the raw byte representation
-           // of the integer, NOT i8s which are the normal
-           // interpretation for a java `byte` primitive.
-           i8::to_be_bytes(*i)[0]
-         })
-         .rfold(N - 1, |ix, b| {
-           byte_array[ix] = b;
-           ix.saturating_sub(1)
-         });
+    bytes
+      .iter()
+      .map(|i| {
+        // https://docs.oracle.com/en/java/javase/19/docs/api/java.base/java/math/BigInteger.html#toByteArray()
+        //
+        // toByteArray returns the raw byte representation
+        // of the integer, NOT i8s which are the normal
+        // interpretation for a java `byte` primitive.
+        i8::to_be_bytes(*i)[0]
+      })
+      .rfold(N - 1, |ix, b| {
+        byte_array[ix] = b;
+        ix.saturating_sub(1)
+      });
 
     byte_array
   }
@@ -102,11 +103,14 @@ impl BigInteger {
   /// must represent a signed two's complement integer, in big-endian order.
   pub fn from_be_bytes(e: &mut java::Env, bytes: &[u8]) -> Self {
     static CTOR_BYTE_ARRAY: java::Constructor<BigInteger, fn(Vec<i8>)> = java::Constructor::new();
-    CTOR_BYTE_ARRAY.invoke(e,
-                           bytes.iter()
-                                .copied()
-                                .map(|u| i8::from_be_bytes(u.to_be_bytes()))
-                                .collect())
+    CTOR_BYTE_ARRAY.invoke(
+      e,
+      bytes
+        .iter()
+        .copied()
+        .map(|u| i8::from_be_bytes(u.to_be_bytes()))
+        .collect(),
+    )
   }
 }
 

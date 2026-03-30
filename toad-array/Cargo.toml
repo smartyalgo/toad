@@ -2,6 +2,7 @@
 name = "toad-array"
 version = "0.8.0"
 edition = "2021"
+rust-version = "1.70"
 description = "Array trait used by the toad ecosystem to abstract over heap or heapless collections"
 authors = ["Orion Kindel <cakekindel@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -22,5 +23,5 @@ test = []
 docs = []
 
 [dependencies]
-tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}
+tinyvec = {version = "1.5", default_features = false, features = ["alloc"]}
 toad-len = {version = "^0.1.2", default_features = false}

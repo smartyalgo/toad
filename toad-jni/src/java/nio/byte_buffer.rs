@@ -23,10 +23,13 @@ impl ByteBuffer {
   pub fn new(e: &mut java::Env, bytes: impl IntoIterator<Item = u8>) -> Self {
     static WRAP: java::StaticMethod<ByteBuffer, fn(Vec<i8>) -> ByteBuffer> =
       java::StaticMethod::new("wrap");
-    WRAP.invoke(e,
-                bytes.into_iter()
-                     .map(|u| i8::from_be_bytes(u.to_be_bytes()))
-                     .collect())
+    WRAP.invoke(
+      e,
+      bytes
+        .into_iter()
+        .map(|u| i8::from_be_bytes(u.to_be_bytes()))
+        .collect(),
+    )
   }
 
   /// Upcast `Buffer` to `ByteBuffer`
@@ -80,11 +83,13 @@ impl ByteBuffer {
 
     let arr = e.new_byte_array(len as i32).unwrap();
 
-    e.call_method(self.0.as_local(),
-                  "get",
-                  Signature::of::<fn(Vec<i8>) -> ByteBuffer>(),
-                  &[(&arr).into()])
-     .unwrap_java(e);
+    e.call_method(
+      self.0.as_local(),
+      "get",
+      Signature::of::<fn(Vec<i8>) -> ByteBuffer>(),
+      &[(&arr).into()],
+    )
+    .unwrap_java(e);
     e.get_byte_array_region(&arr, 0, bytes_i8_mut).unwrap();
     bytes
   }

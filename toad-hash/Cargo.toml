@@ -2,6 +2,7 @@
 name = "toad-hash"
 version = "0.3.0"
 edition = "2021"
+rust-version = "1.70"
 description = "no_std hashing used by toad"
 authors = ["Orion Kindel <cakekindel@gmail.com>"]
 license = "MIT OR Apache-2.0"

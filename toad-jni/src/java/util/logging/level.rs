@@ -102,15 +102,17 @@ impl java::Object for Level {
       finest: F,
     }
 
-    static FIELD: Field = Field { all: F::new("ALL"),
-                                  off: F::new("OFF"),
-                                  cfg: F::new("CONFIG"),
-                                  info: F::new("INFO"),
-                                  warning: F::new("WARNING"),
-                                  severe: F::new("SEVERE"),
-                                  fine: F::new("FINE"),
-                                  finer: F::new("FINER"),
-                                  finest: F::new("FINEST") };
+    static FIELD: Field = Field {
+      all: F::new("ALL"),
+      off: F::new("OFF"),
+      cfg: F::new("CONFIG"),
+      info: F::new("INFO"),
+      warning: F::new("WARNING"),
+      severe: F::new("SEVERE"),
+      fine: F::new("FINE"),
+      finer: F::new("FINER"),
+      finest: F::new("FINEST"),
+    };
 
     match self {
       | All => &FIELD.all,
@@ -122,8 +124,9 @@ impl java::Object for Level {
       | Off => &FIELD.off,
       | Warning => &FIELD.warning,
       | Severe => &FIELD.severe,
-    }.get(e)
-     .object()
+    }
+    .get(e)
+    .object()
   }
 }
 

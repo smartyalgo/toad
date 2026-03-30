@@ -2,6 +2,7 @@
 name = "toad-macros"
 version = "0.2.1"
 edition = "2021"
+rust-version = "1.70"
 description = "Macros used by toad for boilerplate reduction"
 authors = ["Orion Kindel <cakekindel@gmail.com>"]
 license = "MIT OR Apache-2.0"

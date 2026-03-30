@@ -1,14 +1,8 @@
 use toad_array::Array;
 use toad_map::Map;
-use toad_msg::{Id,
-               Message,
-               MessageOptions,
-               OptNumber,
-               OptionMap,
-               Payload,
-               Token,
-               TryIntoBytes,
-               Type};
+use toad_msg::{
+  Id, Message, MessageOptions, OptNumber, OptionMap, Payload, Token, TryIntoBytes, Type,
+};
 
 use crate::ToCoapValue;
 
@@ -82,13 +76,15 @@ impl<P: PlatformTypes> Clone for Req<P> {
 impl<P: PlatformTypes> Req<P> {
   /// Create a request
   pub fn new(method: Method, path: impl AsRef<str>) -> Self {
-    let msg = Message { ty: Type::Con,
-                        ver: Default::default(),
-                        code: method.0,
-                        id: Id(Default::default()),
-                        opts: Default::default(),
-                        payload: Payload(Default::default()),
-                        token: Token(Default::default()) };
+    let msg = Message {
+      ty: Type::Con,
+      ver: Default::default(),
+      code: method.0,
+      id: Id(Default::default()),
+      opts: Default::default(),
+      payload: Payload(Default::default()),
+      token: Token(Default::default()),
+    };
 
     let mut self_ = Self(msg);
 
@@ -113,10 +109,11 @@ impl<P: PlatformTypes> Req<P> {
 
   /// Get the request path (Uri-Path option)
   pub fn path(&self) -> Result<Option<&str>, core::str::Utf8Error> {
-    self.get_option(toad_msg::opt::known::repeat::PATH)
-        .and_then(|o| o.get(0))
-        .map(|o| core::str::from_utf8(&o.0).map(Some))
-        .unwrap_or(Ok(None))
+    self
+      .get_option(toad_msg::opt::known::repeat::PATH)
+      .and_then(|o| o.get(0))
+      .map(|o| core::str::from_utf8(&o.0).map(Some))
+      .unwrap_or(Ok(None))
   }
 
   /// Get the request type (confirmable, non-confirmable)
@@ -224,11 +221,12 @@ impl<P: PlatformTypes> Req<P> {
   /// assert_eq!(path.get(0).unwrap(), &OptValue("hello".as_bytes().to_vec()));
   /// ```
   pub fn get_option(&self, n: OptNumber) -> Option<&<P::MessageOptions as OptionMap>::OptValues> {
-    self.0
-        .opts
-        .iter()
-        .find(|(num, _)| **num == n)
-        .map(|(_, v)| v)
+    self
+      .0
+      .opts
+      .iter()
+      .find(|(num, _)| **num == n)
+      .map(|(_, v)| v)
   }
 
   /// Get the payload and attempt to interpret it as an ASCII string
@@ -248,20 +246,24 @@ impl<P: PlatformTypes> Req<P> {
 
   /// Iterate over the options attached to this request
   pub fn opts(
-    &self)
-    -> impl Iterator<Item = (&OptNumber, &<P::MessageOptions as OptionMap>::OptValues)> {
+    &self,
+  ) -> impl Iterator<Item = (&OptNumber, &<P::MessageOptions as OptionMap>::OptValues)> {
     self.0.opts.iter()
   }
 }
 
-impl<P> AsRef<platform::Message<P>> for Req<P> where P: platform::PlatformTypes
+impl<P> AsRef<platform::Message<P>> for Req<P>
+where
+  P: platform::PlatformTypes,
 {
   fn as_ref(&self) -> &platform::Message<P> {
     &self.0
   }
 }
 
-impl<P> AsMut<platform::Message<P>> for Req<P> where P: platform::PlatformTypes
+impl<P> AsMut<platform::Message<P>> for Req<P>
+where
+  P: platform::PlatformTypes,
 {
   fn as_mut(&mut self) -> &mut platform::Message<P> {
     &mut self.0

@@ -24,14 +24,16 @@ impl System {
   /// `String java.lang.System.setProperty(String)`
   ///
   /// Returns `Some(val)` when there was a previous value.
-  pub fn set_property(e: &mut java::Env,
-                      key: impl ToString,
-                      value: impl ToString)
-                      -> Option<String> {
+  pub fn set_property(
+    e: &mut java::Env,
+    key: impl ToString,
+    value: impl ToString,
+  ) -> Option<String> {
     static SET_PROPERTY: java::StaticMethod<System, fn(String, String) -> Nullable<String>> =
       java::StaticMethod::new("setProperty");
-    SET_PROPERTY.invoke(e, key.to_string(), value.to_string())
-                .into_option(e)
+    SET_PROPERTY
+      .invoke(e, key.to_string(), value.to_string())
+      .into_option(e)
   }
 
   /// `java.lang.System.gc()`

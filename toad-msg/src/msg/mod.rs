@@ -47,21 +47,27 @@ use crate::{CacheKey, DefaultCacheKey, TryFromBytes};
 #[derive(Default, Clone, Debug)]
 pub struct Payload<C>(pub C);
 
-impl<C> PartialOrd for Payload<C> where C: Array<Item = u8>
+impl<C> PartialOrd for Payload<C>
+where
+  C: Array<Item = u8>,
 {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     self.0.iter().partial_cmp(other.0.iter())
   }
 }
 
-impl<C> PartialEq for Payload<C> where C: Array<Item = u8>
+impl<C> PartialEq for Payload<C>
+where
+  C: Array<Item = u8>,
 {
   fn eq(&self, other: &Self) -> bool {
     self.0.iter().eq(other.0.iter())
   }
 }
 
-impl<C> Ord for Payload<C> where C: Array<Item = u8>
+impl<C> Ord for Payload<C>
+where
+  C: Array<Item = u8>,
 {
   fn cmp(&self, other: &Self) -> Ordering {
     self.0.iter().cmp(other.0.iter())
@@ -70,14 +76,18 @@ impl<C> Ord for Payload<C> where C: Array<Item = u8>
 
 impl<C> Eq for Payload<C> where C: Array<Item = u8> {}
 
-impl<C> Hash for Payload<C> where C: Array<Item = u8>
+impl<C> Hash for Payload<C>
+where
+  C: Array<Item = u8>,
 {
   fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
     state.write(&self.0)
   }
 }
 
-impl<C> Payload<C> where C: Array<Item = u8>
+impl<C> Payload<C>
+where
+  C: Array<Item = u8>,
 {
   /// Convert a reference to a Payload to a byte slice
   pub fn as_bytes(&self) -> &[u8] {
@@ -112,9 +122,11 @@ impl TryFrom<u8> for Byte1 {
     let ty = b >> 4 & 0b11; // bits 2 & 3
     let tkl = b & 0b1111u8; // last 4 bits
 
-    Ok(Byte1 { ver: Version(ver),
-               ty: Type::try_from(ty)?,
-               tkl })
+    Ok(Byte1 {
+      ver: Version(ver),
+      ty: Type::try_from(ty)?,
+      tkl,
+    })
   }
 }
 
@@ -199,51 +211,60 @@ pub struct Message<PayloadBytes, Options> {
 }
 
 impl<C, O> PartialOrd for Message<C, O>
-  where O: OptionMap + PartialOrd,
-        C: Array<Item = u8>
+where
+  O: OptionMap + PartialOrd,
+  C: Array<Item = u8>,
 {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     Some(self.cmp(other))
   }
 }
 impl<C, O> PartialEq for Message<C, O>
-  where O: OptionMap + PartialEq,
-        C: Array<Item = u8>
+where
+  O: OptionMap + PartialEq,
+  C: Array<Item = u8>,
 {
   fn eq(&self, other: &Self) -> bool {
     self.id == other.id
-    && self.ver == other.ver
-    && self.code == other.code
-    && self.token == other.token
-    && self.payload == other.payload
-    && self.opts == other.opts
+      && self.ver == other.ver
+      && self.code == other.code
+      && self.token == other.token
+      && self.payload == other.payload
+      && self.opts == other.opts
   }
 }
 impl<C, O> Ord for Message<C, O>
-  where O: OptionMap + PartialOrd,
-        C: Array<Item = u8>
+where
+  O: OptionMap + PartialOrd,
+  C: Array<Item = u8>,
 {
   fn cmp(&self, other: &Self) -> Ordering {
-    self.id
-        .cmp(&other.id)
-        .then(self.ver.cmp(&other.ver))
-        .then(self.code.cmp(&other.code))
-        .then(self.token.cmp(&other.token))
-        .then(self.payload.cmp(&other.payload))
-        .then(self.opts
-                  .partial_cmp(&other.opts)
-                  .unwrap_or(Ordering::Equal))
+    self
+      .id
+      .cmp(&other.id)
+      .then(self.ver.cmp(&other.ver))
+      .then(self.code.cmp(&other.code))
+      .then(self.token.cmp(&other.token))
+      .then(self.payload.cmp(&other.payload))
+      .then(
+        self
+          .opts
+          .partial_cmp(&other.opts)
+          .unwrap_or(Ordering::Equal),
+      )
   }
 }
 impl<C, O> Eq for Message<C, O>
-  where O: OptionMap + PartialEq,
-        C: Array<Item = u8>
+where
+  O: OptionMap + PartialEq,
+  C: Array<Item = u8>,
 {
 }
 
 impl<C, O> Hash for Message<C, O>
-  where O: OptionMap + PartialEq + Hash,
-        C: Array<Item = u8>
+where
+  O: OptionMap + PartialEq + Hash,
+  C: Array<Item = u8>,
 {
   fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
     self.id.hash(state);
@@ -265,8 +286,9 @@ pub enum SetOptionError<OV, OVs> {
 }
 
 impl<P, O> MessageOptions for Message<P, O>
-  where P: Array<Item = u8> + AppendCopy<u8>,
-        O: OptionMap
+where
+  P: Array<Item = u8> + AppendCopy<u8>,
+  O: OptionMap,
 {
   type OptValues = O::OptValues;
   type OptValueBytes = O::OptValue;
@@ -276,10 +298,11 @@ impl<P, O> MessageOptions for Message<P, O>
     self.add(n, v)
   }
 
-  fn set(&mut self,
-         n: OptNumber,
-         v: OptValue<Self::OptValueBytes>)
-         -> Result<Option<Self::OptValues>, Self::SetError> {
+  fn set(
+    &mut self,
+    n: OptNumber,
+    v: OptValue<Self::OptValueBytes>,
+  ) -> Result<Option<Self::OptValues>, Self::SetError> {
     self.set(n, v)
   }
 
@@ -300,7 +323,8 @@ impl<P, O> MessageOptions for Message<P, O>
   }
 
   fn get_strs<'a, F>(&'a self, n: OptNumber) -> Result<F, Utf8Error>
-    where F: FromIterator<&'a str>
+  where
+    F: FromIterator<&'a str>,
   {
     self.get_strs(n)
   }
@@ -344,10 +368,11 @@ pub trait MessageOptions {
 
   /// Replace any / all existing values with a new one,
   /// yielding the previous value(s)
-  fn set(&mut self,
-         n: OptNumber,
-         v: OptValue<Self::OptValueBytes>)
-         -> Result<Option<Self::OptValues>, Self::SetError>;
+  fn set(
+    &mut self,
+    n: OptNumber,
+    v: OptValue<Self::OptValueBytes>,
+  ) -> Result<Option<Self::OptValues>, Self::SetError>;
 
   /// Get the number of values for a given option
   fn count(&self, n: OptNumber) -> usize;
@@ -366,7 +391,8 @@ pub trait MessageOptions {
 
   /// Get all values for an option, and interpret them as UTF-8 strings
   fn get_strs<'a, F>(&'a self, n: OptNumber) -> Result<F, Utf8Error>
-    where F: FromIterator<&'a str>;
+  where
+    F: FromIterator<&'a str>;
 
   /// Get the value of an option, and interpret it
   /// as a u8
@@ -402,39 +428,51 @@ pub trait MessageOptions {
   /// ```
   #[doc = rfc_7252_doc!("5.10.1")]
   fn set_host<S>(&mut self, host: S) -> Result<(), Self::SetError>
-    where S: AsRef<str>
+  where
+    S: AsRef<str>,
   {
-    self.set(opt::known::no_repeat::HOST,
-             host.as_ref().as_bytes().iter().copied().collect())
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::HOST,
+        host.as_ref().as_bytes().iter().copied().collect(),
+      )
+      .map(|_| ())
   }
 
   /// [`opt::known::no_repeat::BLOCK1`]
   fn block1(&self) -> Option<block::Block> {
-    self.get_u32(opt::known::no_repeat::BLOCK1)
-        .map(block::Block::from)
+    self
+      .get_u32(opt::known::no_repeat::BLOCK1)
+      .map(block::Block::from)
   }
 
   /// [`opt::known::no_repeat::BLOCK1`]
   fn set_block1(&mut self, size: u16, num: u32, more: bool) -> Result<(), Self::SetError> {
     let block = block::Block::new(size, num, more);
-    self.set(opt::known::no_repeat::BLOCK1,
-             OptValue(u32::from(block).to_be_bytes().iter().copied().collect()))
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::BLOCK1,
+        OptValue(u32::from(block).to_be_bytes().iter().copied().collect()),
+      )
+      .map(|_| ())
   }
 
   /// [`opt::known::no_repeat::BLOCK2`]
   fn block2(&self) -> Option<block::Block> {
-    self.get_u32(opt::known::no_repeat::BLOCK2)
-        .map(block::Block::from)
+    self
+      .get_u32(opt::known::no_repeat::BLOCK2)
+      .map(block::Block::from)
   }
 
   /// [`opt::known::no_repeat::BLOCK2`]
   fn set_block2(&mut self, size: u16, num: u32, more: bool) -> Result<(), Self::SetError> {
     let block = block::Block::new(size, num, more);
-    self.set(opt::known::no_repeat::BLOCK2,
-             OptValue(u32::from(block).to_be_bytes().iter().copied().collect()))
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::BLOCK2,
+        OptValue(u32::from(block).to_be_bytes().iter().copied().collect()),
+      )
+      .map(|_| ())
   }
 
   /// Get the value for the [Uri-Host](opt::known::no_repeat::HOST) option
@@ -457,9 +495,12 @@ pub trait MessageOptions {
   /// assert_eq!(msg.port(), Some(1234));
   /// ```
   fn set_port(&mut self, port: u16) -> Result<(), Self::SetError> {
-    self.set(opt::known::no_repeat::PORT,
-             port.to_be_bytes().into_iter().collect())
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::PORT,
+        port.to_be_bytes().into_iter().collect(),
+      )
+      .map(|_| ())
   }
 
   /// Get the value for the [Uri-Port](opt::known::no_repeat::PORT) option
@@ -485,20 +526,25 @@ pub trait MessageOptions {
   ///            Ok("cheese/havarti/suggestions".to_string()));
   /// ```
   fn set_path<S>(&mut self, path: S) -> Result<(), Self::SetError>
-    where S: AsRef<str>
+  where
+    S: AsRef<str>,
   {
-    path.as_ref()
-        .split('/')
-        .try_for_each(|segment| {
-          self.add(opt::known::repeat::PATH,
-                   segment.as_bytes().iter().copied().collect())
-        })
-        .map(|_| ())
+    path
+      .as_ref()
+      .split('/')
+      .try_for_each(|segment| {
+        self.add(
+          opt::known::repeat::PATH,
+          segment.as_bytes().iter().copied().collect(),
+        )
+      })
+      .map(|_| ())
   }
 
   /// Get an iterator over the [Uri-Path](opt::known::repeat::PATH) segments
   fn path<'a, F>(&'a self) -> Result<F, Utf8Error>
-    where F: FromIterator<&'a str>
+  where
+    F: FromIterator<&'a str>,
   {
     self.get_strs(opt::known::repeat::PATH)
   }
@@ -506,22 +552,27 @@ pub trait MessageOptions {
   /// Get the fully built path, joining segments with '/'.
   #[cfg(feature = "std")]
   fn path_string<'a>(&'a self) -> Result<String, Utf8Error> {
-    self.get_strs::<Vec<_>>(opt::known::repeat::PATH)
-        .map(|segs| {
-          let mut s = segs.into_iter()
-                          .fold(String::new(), |s, seg| format!("{s}{seg}/"));
-          s.pop();
-          s
-        })
+    self
+      .get_strs::<Vec<_>>(opt::known::repeat::PATH)
+      .map(|segs| {
+        let mut s = segs
+          .into_iter()
+          .fold(String::new(), |s, seg| format!("{s}{seg}/"));
+        s.pop();
+        s
+      })
   }
 
   /// Insert a new value for the [Uri-Query](opt::known::repeat::QUERY) option,
   /// alongside any existing values.
   fn add_query<S>(&mut self, query: S) -> Result<(), Self::SetError>
-    where S: AsRef<str>
+  where
+    S: AsRef<str>,
   {
-    self.add(opt::known::repeat::QUERY,
-             query.as_ref().as_bytes().iter().copied().collect())
+    self.add(
+      opt::known::repeat::QUERY,
+      query.as_ref().as_bytes().iter().copied().collect(),
+    )
   }
 
   /// Get all query parameters for this request
@@ -538,7 +589,8 @@ pub trait MessageOptions {
   ///            Ok(vec!["id[eq]=123", "price[lt]=333"]));
   /// ```
   fn query<'a, F>(&'a self) -> Result<F, Utf8Error>
-    where F: FromIterator<&'a str>
+  where
+    F: FromIterator<&'a str>,
   {
     self.get_strs(opt::known::repeat::QUERY)
   }
@@ -547,9 +599,12 @@ pub trait MessageOptions {
   /// discarding any existing values.
   #[doc = rfc_7252_doc!("5.10.3")]
   fn set_content_format(&mut self, format: ContentFormat) -> Result<(), Self::SetError> {
-    self.set(opt::known::no_repeat::CONTENT_FORMAT,
-             format.into_iter().collect())
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::CONTENT_FORMAT,
+        format.into_iter().collect(),
+      )
+      .map(|_| ())
   }
 
   /// Get the value for the [Content-Format](opt::known::no_repeat::CONTENT_FORMAT) option
@@ -565,45 +620,55 @@ pub trait MessageOptions {
   /// assert_eq!(msg.content_format(), Some(Json));
   /// ```
   fn content_format(&self) -> Option<ContentFormat> {
-    self.get_u16(opt::known::no_repeat::CONTENT_FORMAT)
-        .map(ContentFormat::from)
+    self
+      .get_u16(opt::known::no_repeat::CONTENT_FORMAT)
+      .map(ContentFormat::from)
   }
 
   /// Set the value for the [Observe](opt::known::no_repeat::OBSERVE) option,
   /// discarding any existing values.
   fn set_observe(&mut self, a: observe::Action) -> Result<(), Self::SetError> {
-    self.set(opt::known::no_repeat::OBSERVE,
-             core::iter::once(u8::from(a)).collect())
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::OBSERVE,
+        core::iter::once(u8::from(a)).collect(),
+      )
+      .map(|_| ())
   }
 
   /// Get the value for the [Observe](opt::known::no_repeat::OBSERVE) option
   fn observe(&self) -> Option<observe::Action> {
-    self.get_u8(opt::known::no_repeat::OBSERVE)
-        .and_then(observe::Action::from_byte)
+    self
+      .get_u8(opt::known::no_repeat::OBSERVE)
+      .and_then(observe::Action::from_byte)
   }
 
   /// Update the value for the [Accept](opt::known::no_repeat::ACCEPT) option,
   /// discarding any existing values.
   #[doc = rfc_7252_doc!("5.10.4")]
   fn set_accept(&mut self, format: ContentFormat) -> Result<(), Self::SetError> {
-    self.set(opt::known::no_repeat::ACCEPT, format.into_iter().collect())
-        .map(|_| ())
+    self
+      .set(opt::known::no_repeat::ACCEPT, format.into_iter().collect())
+      .map(|_| ())
   }
 
   /// Get the value for the [Accept](opt::known::no_repeat::ACCEPT) option
   fn accept(&self) -> Option<ContentFormat> {
-    self.get_u16(opt::known::no_repeat::ACCEPT)
-        .map(ContentFormat::from)
+    self
+      .get_u16(opt::known::no_repeat::ACCEPT)
+      .map(ContentFormat::from)
   }
 
   /// Update the value for the [Size1](opt::known::no_repeat::SIZE1) option,
   /// discarding any existing values.
   #[doc = rfc_7252_doc!("5.10.9")]
   fn set_size1(&mut self, size_bytes: u64) -> Result<(), Self::SetError> {
-    self.set(opt::known::no_repeat::SIZE1,
-             size_bytes.to_be_bytes().into_iter().collect())
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::SIZE1,
+        size_bytes.to_be_bytes().into_iter().collect(),
+      )
+      .map(|_| ())
   }
 
   /// Get the value for the [Size1](opt::known::no_repeat::SIZE1) option
@@ -614,9 +679,12 @@ pub trait MessageOptions {
   /// Update the value for the [Size2](opt::known::no_repeat::SIZE2) option,
   /// discarding any existing values.
   fn set_size2(&mut self, size_bytes: u64) -> Result<(), Self::SetError> {
-    self.set(opt::known::no_repeat::SIZE2,
-             size_bytes.to_be_bytes().into_iter().collect())
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::SIZE2,
+        size_bytes.to_be_bytes().into_iter().collect(),
+      )
+      .map(|_| ())
   }
 
   /// Get the value for the [Size2](opt::known::no_repeat::SIZE2) option
@@ -631,15 +699,17 @@ pub trait MessageOptions {
   /// a resource that exists (e.g. this ensures PUT only updates and will never insert)
   #[doc = rfc_7252_doc!("5.10.8.1")]
   fn set_if_exists(&mut self) -> Result<(), Self::SetError> {
-    self.set(opt::known::repeat::IF_MATCH, Default::default())
-        .map(|_| ())
+    self
+      .set(opt::known::repeat::IF_MATCH, Default::default())
+      .map(|_| ())
   }
 
   /// Get whether or not [`Message::set_if_exists`] applies
   fn if_exists_flag_enabled(&self) -> bool {
-    self.get(opt::known::repeat::IF_MATCH)
-        .map(|vs| vs.iter().any(|v| v.0.len() == 0))
-        .unwrap_or(false)
+    self
+      .get(opt::known::repeat::IF_MATCH)
+      .map(|vs| vs.iter().any(|v| v.0.len() == 0))
+      .unwrap_or(false)
   }
 
   /// Enable the [If-None-Match](opt::known::no_repeat::IF_NONE_MATCH) flag
@@ -648,24 +718,29 @@ pub trait MessageOptions {
   /// a resource that does not exist (e.g. this ensures PUT only inserts and will never update)
   #[doc = rfc_7252_doc!("5.10.8.2")]
   fn set_if_not_exists(&mut self) -> Result<(), Self::SetError> {
-    self.set(opt::known::no_repeat::IF_NONE_MATCH, Default::default())
-        .map(|_| ())
+    self
+      .set(opt::known::no_repeat::IF_NONE_MATCH, Default::default())
+      .map(|_| ())
   }
 
   /// Get whether or not [`Message::set_if_not_exists`] applies
   fn if_not_exists_flag_enabled(&self) -> bool {
-    self.get_first(opt::known::no_repeat::IF_NONE_MATCH)
-        .map(|_| true)
-        .unwrap_or(false)
+    self
+      .get_first(opt::known::no_repeat::IF_NONE_MATCH)
+      .map(|_| true)
+      .unwrap_or(false)
   }
 
   /// Update the value for the [Max-Age](opt::known::no_repeat::MAX_AGE) option,
   /// discarding any existing values.
   #[doc = rfc_7252_doc!("5.10.5")]
   fn set_max_age(&mut self, max_age_seconds: u32) -> Result<(), Self::SetError> {
-    self.set(opt::known::no_repeat::MAX_AGE,
-             max_age_seconds.to_be_bytes().into_iter().collect())
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::MAX_AGE,
+        max_age_seconds.to_be_bytes().into_iter().collect(),
+      )
+      .map(|_| ())
   }
 
   /// Get the value for the [Max-Age](opt::known::no_repeat::MAX_AGE) option, in seconds
@@ -677,11 +752,15 @@ pub trait MessageOptions {
   /// discarding any existing values.
   #[doc = rfc_7252_doc!("5.10.2")]
   fn set_proxy_uri<S>(&mut self, uri: S) -> Result<(), Self::SetError>
-    where S: AsRef<str>
+  where
+    S: AsRef<str>,
   {
-    self.set(opt::known::no_repeat::PROXY_URI,
-             uri.as_ref().as_bytes().iter().copied().collect())
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::PROXY_URI,
+        uri.as_ref().as_bytes().iter().copied().collect(),
+      )
+      .map(|_| ())
   }
 
   /// Get the value for the [Proxy-Uri](opt::known::no_repeat::PROXY_URI) option
@@ -692,11 +771,15 @@ pub trait MessageOptions {
   /// Update the value for the [Proxy-Scheme](opt::known::no_repeat::PROXY_SCHEME) option,
   /// discarding any existing values.
   fn set_proxy_scheme<S>(&mut self, scheme: S) -> Result<(), Self::SetError>
-    where S: AsRef<str>
+  where
+    S: AsRef<str>,
   {
-    self.set(opt::known::no_repeat::PROXY_SCHEME,
-             scheme.as_ref().as_bytes().iter().copied().collect())
-        .map(|_| ())
+    self
+      .set(
+        opt::known::no_repeat::PROXY_SCHEME,
+        scheme.as_ref().as_bytes().iter().copied().collect(),
+      )
+      .map(|_| ())
   }
 
   /// Get the value for the [Proxy-Scheme](opt::known::no_repeat::PROXY_SCHEME) option
@@ -708,17 +791,21 @@ pub trait MessageOptions {
   /// alongside any existing values.
   #[doc = rfc_7252_doc!("5.10.8.1")]
   fn add_if_match<B>(&mut self, tag: B) -> Result<(), Self::SetError>
-    where B: AsRef<[u8]>
+  where
+    B: AsRef<[u8]>,
   {
     if let Some(others) = self.remove(opt::known::repeat::IF_MATCH) {
-      others.into_iter()
-            .filter(|v| v.0.len() > 0)
-            .map(|v| self.add(opt::known::repeat::IF_MATCH, v))
-            .collect::<Result<(), _>>()?;
+      others
+        .into_iter()
+        .filter(|v| v.0.len() > 0)
+        .map(|v| self.add(opt::known::repeat::IF_MATCH, v))
+        .collect::<Result<(), _>>()?;
     }
 
-    self.add(opt::known::repeat::IF_MATCH,
-             tag.as_ref().iter().copied().collect())
+    self.add(
+      opt::known::repeat::IF_MATCH,
+      tag.as_ref().iter().copied().collect(),
+    )
   }
 
   /// Get all values for the [If-Match](opt::known::repeat::IF_MATCH) option
@@ -730,15 +817,19 @@ pub trait MessageOptions {
   /// alongside any existing values.
   #[doc = rfc_7252_doc!("5.10.7")]
   fn add_location_path<S>(&mut self, path: S) -> Result<(), Self::SetError>
-    where S: AsRef<str>
+  where
+    S: AsRef<str>,
   {
-    self.add(opt::known::repeat::LOCATION_PATH,
-             path.as_ref().as_bytes().iter().copied().collect())
+    self.add(
+      opt::known::repeat::LOCATION_PATH,
+      path.as_ref().as_bytes().iter().copied().collect(),
+    )
   }
 
   /// Get all values for the [Location-Path](opt::known::repeat::LOCATION_PATH) option
   fn location_path<'a, F>(&'a self) -> Result<F, Utf8Error>
-    where F: FromIterator<&'a str>
+  where
+    F: FromIterator<&'a str>,
   {
     self.get_strs(opt::known::repeat::LOCATION_PATH)
   }
@@ -747,15 +838,19 @@ pub trait MessageOptions {
   /// alongside any existing values.
   #[doc = rfc_7252_doc!("5.10.7")]
   fn add_location_query<S>(&mut self, query: S) -> Result<(), Self::SetError>
-    where S: AsRef<str>
+  where
+    S: AsRef<str>,
   {
-    self.add(opt::known::repeat::LOCATION_QUERY,
-             query.as_ref().as_bytes().iter().copied().collect())
+    self.add(
+      opt::known::repeat::LOCATION_QUERY,
+      query.as_ref().as_bytes().iter().copied().collect(),
+    )
   }
 
   /// Get all values for the [Location-Query](opt::known::repeat::LOCATION_QUERY) option
   fn location_query<'a, F>(&'a self) -> Result<F, Utf8Error>
-    where F: FromIterator<&'a str>
+  where
+    F: FromIterator<&'a str>,
   {
     self.get_strs(opt::known::repeat::LOCATION_QUERY)
   }
@@ -764,10 +859,13 @@ pub trait MessageOptions {
   /// alongside any existing values.
   #[doc = rfc_7252_doc!("5.10.7")]
   fn add_etag<B>(&mut self, tag: B) -> Result<(), Self::SetError>
-    where B: AsRef<[u8]>
+  where
+    B: AsRef<[u8]>,
   {
-    self.add(opt::known::repeat::ETAG,
-             tag.as_ref().iter().copied().collect())
+    self.add(
+      opt::known::repeat::ETAG,
+      tag.as_ref().iter().copied().collect(),
+    )
   }
 
   /// Get all values for the [ETag](opt::known::repeat::ETAG) option
@@ -781,13 +879,15 @@ impl<PayloadBytes: Array<Item = u8> + AppendCopy<u8>, Options: OptionMap>
 {
   /// Create a new message
   pub fn new(ty: Type, code: Code, id: Id, token: Token) -> Self {
-    Self { id,
-           token,
-           ty,
-           code,
-           ver: Version::default(),
-           payload: Payload(PayloadBytes::default()),
-           opts: Options::default() }
+    Self {
+      id,
+      token,
+      ty,
+      code,
+      ver: Version::default(),
+      payload: Payload(PayloadBytes::default()),
+      opts: Options::default(),
+    }
   }
 
   /// Using [`DefaultCacheKey`], get the cache key for
@@ -853,19 +953,22 @@ impl<PayloadBytes: Array<Item = u8> + AppendCopy<u8>, Options: OptionMap>
   /// server_send_msg(addr, ack).unwrap();
   /// ```
   pub fn ack(&self, id: Id) -> Self {
-    Self { id,
-           token: self.token,
-           ver: Default::default(),
-           ty: Type::Ack,
-           code: Code::new(0, 0),
-           payload: Payload(Default::default()),
-           opts: Default::default() }
+    Self {
+      id,
+      token: self.token,
+      ver: Default::default(),
+      ty: Type::Ack,
+      code: Code::new(0, 0),
+      payload: Payload(Default::default()),
+      opts: Default::default(),
+    }
   }
 
-  fn add(&mut self,
-         n: OptNumber,
-         v: OptValue<Options::OptValue>)
-         -> Result<(), SetOptionError<OptValue<Options::OptValue>, Options::OptValues>> {
+  fn add(
+    &mut self,
+    n: OptNumber,
+    v: OptValue<Options::OptValue>,
+  ) -> Result<(), SetOptionError<OptValue<Options::OptValue>, Options::OptValues>> {
     match (self.remove(n).unwrap_or_default(), &mut self.opts) {
       | (vals, _) if vals.is_full() => Err(SetOptionError::RepeatedTooManyTimes(v)),
       | (vals, opts) if opts.is_full() => Err(SetOptionError::TooManyOptions(n, vals)),
@@ -880,9 +983,11 @@ impl<PayloadBytes: Array<Item = u8> + AppendCopy<u8>, Options: OptionMap>
   fn set(
     &mut self,
     n: OptNumber,
-    v: OptValue<Options::OptValue>)
-    -> Result<Option<Options::OptValues>,
-              SetOptionError<OptValue<Options::OptValue>, Options::OptValues>> {
+    v: OptValue<Options::OptValue>,
+  ) -> Result<
+    Option<Options::OptValues>,
+    SetOptionError<OptValue<Options::OptValue>, Options::OptValues>,
+  > {
     Ok(self.remove(n)).and_then(|old| self.add(n, v).map(|_| old))
   }
 
@@ -906,7 +1011,8 @@ impl<PayloadBytes: Array<Item = u8> + AppendCopy<u8>, Options: OptionMap>
   }
 
   fn get_strs<'a, F>(&'a self, n: OptNumber) -> Result<F, Utf8Error>
-    where F: FromIterator<&'a str>
+  where
+    F: FromIterator<&'a str>,
   {
     match self.get(n) {
       | Some(vs) if vs.len() >= 1 => vs.iter().map(|s| from_utf8(&s.0)).collect(),
@@ -915,30 +1021,36 @@ impl<PayloadBytes: Array<Item = u8> + AppendCopy<u8>, Options: OptionMap>
   }
 
   fn get_u8(&self, n: OptNumber) -> Option<u8> {
-    self.get_first(n)
-        .filter(|bytes| bytes.0.len() == 1)
-        .map(|bytes| bytes.0[0])
+    self
+      .get_first(n)
+      .filter(|bytes| bytes.0.len() == 1)
+      .map(|bytes| bytes.0[0])
   }
 
   fn get_u16(&self, n: OptNumber) -> Option<u16> {
-    self.get_first(n)
-        .filter(|bytes| bytes.0.len() == 2)
-        .map(|bytes| u16::from_be_bytes([bytes.0[0], bytes.0[1]]))
+    self
+      .get_first(n)
+      .filter(|bytes| bytes.0.len() == 2)
+      .map(|bytes| u16::from_be_bytes([bytes.0[0], bytes.0[1]]))
   }
 
   fn get_u32(&self, n: OptNumber) -> Option<u32> {
-    self.get_first(n)
-        .filter(|bytes| bytes.0.len() == 4)
-        .map(|bytes| u32::from_be_bytes([bytes.0[0], bytes.0[1], bytes.0[2], bytes.0[3]]))
+    self
+      .get_first(n)
+      .filter(|bytes| bytes.0.len() == 4)
+      .map(|bytes| u32::from_be_bytes([bytes.0[0], bytes.0[1], bytes.0[2], bytes.0[3]]))
   }
 
   fn get_u64(&self, n: OptNumber) -> Option<u64> {
-    self.get_first(n)
-        .filter(|bytes| bytes.0.len() == 8)
-        .map(|bytes| {
-          u64::from_be_bytes([bytes.0[0], bytes.0[1], bytes.0[2], bytes.0[3], bytes.0[4],
-                              bytes.0[5], bytes.0[6], bytes.0[7]])
-        })
+    self
+      .get_first(n)
+      .filter(|bytes| bytes.0.len() == 8)
+      .map(|bytes| {
+        u64::from_be_bytes([
+          bytes.0[0], bytes.0[1], bytes.0[2], bytes.0[3], bytes.0[4], bytes.0[5], bytes.0[6],
+          bytes.0[7],
+        ])
+      })
   }
 
   fn remove(&mut self, n: OptNumber) -> Option<Options::OptValues> {
@@ -954,9 +1066,10 @@ impl<Bytes: AsRef<[u8]>, PayloadBytes: Array<Item = u8> + AppendCopy<u8>, Option
   fn try_from_bytes(bytes: Bytes) -> Result<Self, Self::Error> {
     let mut bytes = Cursor::new(bytes);
 
-    let Byte1 { tkl, ty, ver } = bytes.next()
-                                      .ok_or_else(MessageParseError::eof)?
-                                      .try_into()?;
+    let Byte1 { tkl, ty, ver } = bytes
+      .next()
+      .ok_or_else(MessageParseError::eof)?
+      .try_into()?;
 
     if tkl > 8 {
       return Err(Self::Error::InvalidTokenLength(tkl));
@@ -965,8 +1078,9 @@ impl<Bytes: AsRef<[u8]>, PayloadBytes: Array<Item = u8> + AppendCopy<u8>, Option
     let code: Code = bytes.next().ok_or_else(MessageParseError::eof)?.into();
     let id: Id = Id::try_consume_bytes(&mut bytes)?;
 
-    let token = bytes.take_exact(tkl as usize)
-                     .ok_or_else(MessageParseError::eof)?;
+    let token = bytes
+      .take_exact(tkl as usize)
+      .ok_or_else(MessageParseError::eof)?;
     let token = tinyvec::ArrayVec::<[u8; 8]>::try_from(token).expect("tkl was checked to be <= 8");
     let token = Token(token);
 
@@ -976,13 +1090,15 @@ impl<Bytes: AsRef<[u8]>, PayloadBytes: Array<Item = u8> + AppendCopy<u8>, Option
     payload.append_copy(bytes.take_until_end());
     let payload = Payload(payload);
 
-    Ok(Message { id,
-                 ty,
-                 ver,
-                 code,
-                 token,
-                 opts,
-                 payload })
+    Ok(Message {
+      id,
+      ty,
+      ver,
+      code,
+      token,
+      opts,
+      payload,
+    })
   }
 }
 
@@ -1001,10 +1117,14 @@ mod tests {
   fn parse_byte1() {
     let byte = 0b_01_10_0011u8;
     let byte = Byte1::try_from(byte).unwrap();
-    assert_eq!(byte,
-               Byte1 { ver: Version(1),
-                       ty: Type::Ack,
-                       tkl: 3 })
+    assert_eq!(
+      byte,
+      Byte1 {
+        ver: Version(1),
+        ty: Type::Ack,
+        tkl: 3
+      }
+    )
   }
 
   #[test]
