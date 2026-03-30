@@ -10,12 +10,12 @@ jobs:
   ci_check:
     runs-on: 'ubuntu-latest'
     steps:
-    - uses: 'actions/checkout@v2'
-    - uses: 'actions/setup-java@v3'
+    - uses: 'actions/checkout@v4'
+    - uses: 'actions/setup-java@v4'
       with:
         distribution: 'liberica'
         java-version: '20'
-    - uses: 'actions/cache@v2'
+    - uses: 'actions/cache@v4'
       with:
         path: |
           ~/.rustup/toolchains
@@ -114,4 +114,4 @@ jobs:
     - name: 'check toad-string'
       run: 'cargo make ci'
       if: github.ref == 'refs/heads/main' || steps.package_changed.outputs.toad-string == 'true'
-      working-directory: 'toad-map'
+      working-directory: 'toad-string'

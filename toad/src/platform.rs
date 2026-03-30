@@ -1,7 +1,6 @@
 use core::fmt::Debug;
 
 use ::toad_msg::{Id, OptNumber, OptValue, OptionMap, Token, TryIntoBytes};
-use embedded_time::Instant;
 use naan::prelude::MonadOnce;
 use no_std_net::SocketAddr;
 #[cfg(feature = "alloc")]
@@ -13,7 +12,7 @@ use crate::net::{Addrd, Socket};
 use crate::req::Req;
 use crate::resp::Resp;
 use crate::step::Step;
-use crate::time::Clock;
+use crate::time::{Clock, Instant};
 use crate::todo::String;
 
 /// Default [`PlatformError`] implementation
@@ -23,12 +22,13 @@ pub enum Error<Step, Socket> {
   MessageToBytes(::toad_msg::to_bytes::MessageToBytesError),
   Step(Step),
   Socket(Socket),
-  Clock(embedded_time::clock::Error),
+  Clock(crate::time::ClockError),
 }
 
 impl<Step, Socket> PlatformError<Step, Socket> for Error<Step, Socket>
-  where Step: core::fmt::Debug,
-        Socket: core::fmt::Debug
+where
+  Step: core::fmt::Debug,
+  Socket: core::fmt::Debug,
 {
   fn msg_to_bytes(e: ::toad_msg::to_bytes::MessageToBytesError) -> Self {
     Self::MessageToBytes(e)
@@ -42,7 +42,7 @@ impl<Step, Socket> PlatformError<Step, Socket> for Error<Step, Socket>
     Self::Socket(e)
   }
 
-  fn clock(e: embedded_time::clock::Error) -> Self {
+  fn clock(e: crate::time::ClockError) -> Self {
     Self::Clock(e)
   }
 }
@@ -59,7 +59,7 @@ pub trait PlatformError<StepError, SocketError>: Sized + core::fmt::Debug {
   fn socket(e: SocketError) -> Self;
 
   /// Convert a clock error to PlatformError
-  fn clock(e: embedded_time::clock::Error) -> Self;
+  fn clock(e: crate::time::ClockError) -> Self;
 }
 
 /// The runtime component of the `Platform` abstraction
@@ -73,8 +73,8 @@ pub trait PlatformError<StepError, SocketError>: Sized + core::fmt::Debug {
 /// * [`Platform::Types`]
 /// * [`Platform::Error`]
 pub trait Platform<Steps>
-  where Steps:
-          Step<Self::Types, PollReq = Addrd<Req<Self::Types>>, PollResp = Addrd<Resp<Self::Types>>>
+where
+  Steps: Step<Self::Types, PollReq = Addrd<Req<Self::Types>>, PollResp = Addrd<Resp<Self::Types>>>,
 {
   /// See [`PlatformTypes`]
   type Types: PlatformTypes;
@@ -82,45 +82,52 @@ pub trait Platform<Steps>
   /// Slot for any error type that impls [`PlatformError`].
   ///
   /// If no custom behavior is needed, [`self::Error`] is a sensible default.
-  type Error: PlatformError<<Steps as Step<Self::Types>>::Error,
-                            <<Self::Types as PlatformTypes>::Socket as Socket>::Error>;
+  type Error: PlatformError<
+    <Steps as Step<Self::Types>>::Error,
+    <<Self::Types as PlatformTypes>::Socket as Socket>::Error,
+  >;
 
   /// Take a snapshot of the platform's state right now,
   /// including the system time and datagrams currently
   /// in the network socket
   fn snapshot(&self) -> Result<Snapshot<Self::Types>, Self::Error> {
-    use embedded_time::Clock;
-
-    self.socket()
-        .poll()
-        .map_err(Self::Error::socket)
-        .and_then(|recvd_dgram| {
-          self.clock()
-              .try_now()
-              .map_err(Self::Error::clock)
-              .map(|time| Snapshot { recvd_dgram,
-                                     config: self.config(),
-                                     time })
-        })
+    self
+      .socket()
+      .poll()
+      .map_err(Self::Error::socket)
+      .and_then(|recvd_dgram| {
+        self
+          .clock()
+          .try_now()
+          .map_err(Self::Error::clock)
+          .map(|time| Snapshot {
+            recvd_dgram,
+            config: self.config(),
+            time,
+          })
+      })
   }
 
   /// Poll for an incoming request, and pass it through `Steps`
   /// for processing.
   fn poll_req(&self) -> nb::Result<Addrd<Req<Self::Types>>, Self::Error> {
     let mut effects = <Self::Types as PlatformTypes>::Effects::default();
-    let res = self.snapshot()
-                  .map_err(nb::Error::Other)
-                  .and_then(|snapshot| {
-                    self.steps()
-                        .poll_req(&snapshot, &mut effects)
-                        .unwrap_or(Err(nb::Error::WouldBlock))
-                        .map_err(|e: nb::Error<_>| e.map(Self::Error::step))
-                  });
+    let res = self
+      .snapshot()
+      .map_err(nb::Error::Other)
+      .and_then(|snapshot| {
+        self
+          .steps()
+          .poll_req(&snapshot, &mut effects)
+          .unwrap_or(Err(nb::Error::WouldBlock))
+          .map_err(|e: nb::Error<_>| e.map(Self::Error::step))
+      });
 
     // NOTE: exec effects even if the above blocks
-    self.exec_many(effects)
-        .map_err(|(_, e)| e)
-        .map_err(nb::Error::Other)?;
+    self
+      .exec_many(effects)
+      .map_err(|(_, e)| e)
+      .map_err(nb::Error::Other)?;
 
     res
   }
@@ -128,36 +135,42 @@ pub trait Platform<Steps>
   /// Notify Observe subscribers that a new representation of the resource
   /// at `path` is available
   fn notify<P>(&self, path: P) -> Result<(), Self::Error>
-    where P: AsRef<str> + Clone
+  where
+    P: AsRef<str> + Clone,
   {
     let mut effects = <Self::Types as PlatformTypes>::Effects::default();
-    self.steps()
-        .notify(path, &mut effects)
-        .map_err(Self::Error::step)?;
+    self
+      .steps()
+      .notify(path, &mut effects)
+      .map_err(Self::Error::step)?;
 
     self.exec_many(effects).map_err(|(_, e)| e)
   }
 
   /// Poll for a response to a sent request, and pass it through `Steps`
   /// for processing.
-  fn poll_resp(&self,
-               token: Token,
-               addr: SocketAddr)
-               -> nb::Result<Addrd<Resp<Self::Types>>, Self::Error> {
+  fn poll_resp(
+    &self,
+    token: Token,
+    addr: SocketAddr,
+  ) -> nb::Result<Addrd<Resp<Self::Types>>, Self::Error> {
     let mut effects = <Self::Types as PlatformTypes>::Effects::default();
-    let res = self.snapshot()
-                  .map_err(nb::Error::Other)
-                  .and_then(|snapshot| {
-                    self.steps()
-                        .poll_resp(&snapshot, &mut effects, token, addr)
-                        .unwrap_or(Err(nb::Error::WouldBlock))
-                        .map_err(|e: nb::Error<_>| e.map(Self::Error::step))
-                  });
+    let res = self
+      .snapshot()
+      .map_err(nb::Error::Other)
+      .and_then(|snapshot| {
+        self
+          .steps()
+          .poll_resp(&snapshot, &mut effects, token, addr)
+          .unwrap_or(Err(nb::Error::WouldBlock))
+          .map_err(|e: nb::Error<_>| e.map(Self::Error::step))
+      });
 
     // NOTE: exec effects even if the above blocks
-    self.exec_many(effects)
-        .map_err(|(_, e)| e)
-        .map_err(nb::Error::Other)?;
+    self
+      .exec_many(effects)
+      .map_err(|(_, e)| e)
+      .map_err(nb::Error::Other)?;
 
     res
   }
@@ -168,43 +181,63 @@ pub trait Platform<Steps>
   fn log(&self, level: log::Level, msg: String<1000>) -> Result<(), Self::Error>;
 
   /// Send a [`toad_msg::Message`]
-  fn send_msg(&self,
-              mut addrd_msg: Addrd<self::toad_msg::Message<Self::Types>>)
-              -> nb::Result<(Id, Token), Self::Error> {
+  fn send_msg(
+    &self,
+    mut addrd_msg: Addrd<self::toad_msg::Message<Self::Types>>,
+  ) -> nb::Result<(Id, Token), Self::Error> {
     type Dgram<P> = <<P as PlatformTypes>::Socket as Socket>::Dgram;
 
     let mut effs = <Self::Types as PlatformTypes>::Effects::default();
     let mut on_message_sent_effs = <Self::Types as PlatformTypes>::Effects::default();
 
-    self.snapshot()
-        .discard(|snapshot: &Snapshot<Self::Types>| {
-          self.steps()
-              .before_message_sent(snapshot, &mut effs, &mut addrd_msg)
-              .map_err(Self::Error::step)
+    self
+      .snapshot()
+      .discard(|snapshot: &Snapshot<Self::Types>| {
+        self
+          .steps()
+          .before_message_sent(snapshot, &mut effs, &mut addrd_msg)
+          .map_err(Self::Error::step)
+      })
+      .discard(|_: &Snapshot<Self::Types>| self.exec_many(effs).map_err(|(_, e)| e))
+      .and_then(|snapshot| {
+        addrd_msg.clone().fold(|msg, addr| {
+          let (id, token) = (msg.id, msg.token);
+          msg
+            .try_into_bytes::<Dgram<Self::Types>>()
+            .map_err(Self::Error::msg_to_bytes)
+            .map(|bytes| (id, token, snapshot, Addrd(bytes, addr)))
         })
-        .discard(|_: &Snapshot<Self::Types>| self.exec_many(effs).map_err(|(_, e)| e))
-        .and_then(|snapshot| {
-          addrd_msg.clone().fold(|msg, addr| {
-                             let (id, token) = (msg.id, msg.token);
-                             msg.try_into_bytes::<Dgram<Self::Types>>()
-                                .map_err(Self::Error::msg_to_bytes)
-                                .map(|bytes| (id, token, snapshot, Addrd(bytes, addr)))
-                           })
-        })
-        .map_err(nb::Error::Other)
-        .discard(|(_, _, _, addrd_bytes): &(_, _, _, Addrd<<<Self::Types as PlatformTypes>::Socket as Socket>::Dgram>)| {
-          self.socket()
-              .send(addrd_bytes.as_ref().map(|s| s.as_ref()))
-              .map_err(|e: nb::Error<_>| e.map(Self::Error::socket))
-        })
-        .discard(|(_, _, snapshot, _): &(_, _, Snapshot<<Self as Platform<Steps>>::Types>, _)| {
-          self.steps()
-              .on_message_sent(snapshot, &mut on_message_sent_effs, &addrd_msg)
-              .map_err(Self::Error::step)
-              .map_err(nb::Error::Other)
-        })
-        .discard(|_: &(_, _, _, _)| self.exec_many(on_message_sent_effs).map_err(|(_, e)| e).map_err(nb::Error::Other))
-        .map(|(id, token, _, _)| (id, token))
+      })
+      .map_err(nb::Error::Other)
+      .discard(
+        |(_, _, _, addrd_bytes): &(
+          _,
+          _,
+          _,
+          Addrd<<<Self::Types as PlatformTypes>::Socket as Socket>::Dgram>,
+        )| {
+          self
+            .socket()
+            .send(addrd_bytes.as_ref().map(|s| s.as_ref()))
+            .map_err(|e: nb::Error<_>| e.map(Self::Error::socket))
+        },
+      )
+      .discard(
+        |(_, _, snapshot, _): &(_, _, Snapshot<<Self as Platform<Steps>>::Types>, _)| {
+          self
+            .steps()
+            .on_message_sent(snapshot, &mut on_message_sent_effs, &addrd_msg)
+            .map_err(Self::Error::step)
+            .map_err(nb::Error::Other)
+        },
+      )
+      .discard(|_: &(_, _, _, _)| {
+        self
+          .exec_many(on_message_sent_effs)
+          .map_err(|(_, e)| e)
+          .map_err(nb::Error::Other)
+      })
+      .map(|(id, token, _, _)| (id, token))
   }
 
   /// Execute an [`Effect`]
@@ -224,22 +257,23 @@ pub trait Platform<Steps>
   ///
   /// If executing an effect errors, the erroring effect and all remaining effects are
   /// returned along with the error.
-  fn exec_many(&self,
-               effects: <Self::Types as PlatformTypes>::Effects)
-               -> Result<(), (<Self::Types as PlatformTypes>::Effects, Self::Error)> {
-    effects.into_iter()
-           .fold(Ok(()), |so_far, eff| match so_far {
-             | Ok(()) => nb::block!(self.exec_1(&eff)).map_err(|e| {
-                           let mut effs: <Self::Types as PlatformTypes>::Effects =
-                             Default::default();
-                           effs.push(eff);
-                           (effs, e)
-                         }),
-             | Err((mut effs, e)) => {
-               effs.push(eff);
-               Err((effs, e))
-             },
-           })
+  fn exec_many(
+    &self,
+    effects: <Self::Types as PlatformTypes>::Effects,
+  ) -> Result<(), (<Self::Types as PlatformTypes>::Effects, Self::Error)> {
+    effects
+      .into_iter()
+      .fold(Ok(()), |so_far, eff| match so_far {
+        | Ok(()) => nb::block!(self.exec_1(&eff)).map_err(|e| {
+          let mut effs: <Self::Types as PlatformTypes>::Effects = Default::default();
+          effs.push(eff);
+          (effs, e)
+        }),
+        | Err((mut effs, e)) => {
+          effs.push(eff);
+          Err((effs, e))
+        },
+      })
   }
 
   /// Copy of runtime behavior [`Config`] to be used
@@ -302,7 +336,7 @@ pub trait PlatformTypes: Sized + 'static + core::fmt::Debug {
 #[non_exhaustive]
 pub struct Snapshot<P: PlatformTypes> {
   /// The current system time at the start of the step pipe
-  pub time: Instant<P::Clock>,
+  pub time: Instant,
 
   /// A UDP datagram received from somewhere
   pub recvd_dgram: Option<Addrd<<P::Socket as Socket>::Dgram>>,
@@ -314,18 +348,20 @@ pub struct Snapshot<P: PlatformTypes> {
 impl<P: PlatformTypes> core::fmt::Debug for Snapshot<P> {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.debug_struct("Snapshot")
-     .field("time", &self.time)
-     .field("recvd_dgram", &self.recvd_dgram)
-     .field("config", &self.config)
-     .finish()
+      .field("time", &self.time)
+      .field("recvd_dgram", &self.recvd_dgram)
+      .field("config", &self.config)
+      .finish()
   }
 }
 
 impl<P: PlatformTypes> Clone for Snapshot<P> {
   fn clone(&self) -> Self {
-    Self { time: self.time,
-           recvd_dgram: self.recvd_dgram.clone(),
-           config: self.config }
+    Self {
+      time: self.time,
+      recvd_dgram: self.recvd_dgram.clone(),
+      config: self.config,
+    }
   }
 }
 
@@ -334,14 +370,17 @@ impl<P: PlatformTypes> Clone for Snapshot<P> {
 /// to perform.
 #[allow(missing_docs)]
 pub enum Effect<P>
-  where P: PlatformTypes
+where
+  P: PlatformTypes,
 {
   Send(Addrd<self::toad_msg::Message<P>>),
   Log(log::Level, String<1000>),
   Nop,
 }
 
-impl<P> Default for Effect<P> where P: PlatformTypes
+impl<P> Default for Effect<P>
+where
+  P: PlatformTypes,
 {
   fn default() -> Self {
     Self::Nop
@@ -386,9 +425,9 @@ impl<P: PlatformTypes> PartialEq for Effect<P> {
 /// we've attempted to send this request and whether we
 /// should consider it poisoned.
 #[derive(Debug, Clone, Copy)]
-pub struct Retryable<P: PlatformTypes, T>(pub T, pub crate::retry::RetryTimer<P::Clock>);
+pub struct Retryable<T>(pub T, pub crate::retry::RetryTimer);
 
-impl<P: PlatformTypes, T> Retryable<P, T> {
+impl<T> Retryable<T> {
   /// Gets the data, discarding the retry timer
   pub fn unwrap(self) -> T {
     self.0
@@ -402,8 +441,9 @@ impl<P: PlatformTypes, T> Retryable<P, T> {
 #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 #[derive(Copy)]
 pub struct Alloc<Clk, Sock>(core::marker::PhantomData<(Clk, Sock)>)
-  where Clk: Clock + 'static,
-        Sock: Socket + 'static;
+where
+  Clk: Clock + 'static,
+  Sock: Socket + 'static;
 
 #[cfg(feature = "alloc")]
 impl<Clk: Clock + 'static, Sock: Socket + 'static> core::fmt::Debug for Alloc<Clk, Sock> {

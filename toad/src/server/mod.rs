@@ -71,7 +71,8 @@ pub enum Error<E> {
 /// ```
 #[derive(Debug)]
 pub enum Run<P, E>
-  where P: PlatformTypes
+where
+  P: PlatformTypes,
 {
   /// Request has not been matched yet
   Unmatched(Addrd<Req<P>>),
@@ -82,8 +83,9 @@ pub enum Run<P, E>
 }
 
 impl<P, E> PartialEq for Run<P, E>
-  where P: PlatformTypes,
-        E: PartialEq
+where
+  P: PlatformTypes,
+  E: PartialEq,
 {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
@@ -96,17 +98,22 @@ impl<P, E> PartialEq for Run<P, E>
 }
 
 impl<P, E> Run<P, E>
-  where P: PlatformTypes,
-        E: core::fmt::Debug
+where
+  P: PlatformTypes,
+  E: core::fmt::Debug,
 {
   /// Lift an [`Ap`] to [`Run`]
   pub fn handle(ap: Ap<Complete, P, (), E>) -> Self {
     match ap.0 {
       | ApInner::Err(e) => Self::Error(Error::Other(e)),
-      | ApInner::RespondHydrated(Respond { code,
-                                           payload,
-                                           etag, },
-                                 Addrd(req, addr)) => {
+      | ApInner::RespondHydrated(
+        Respond {
+          code,
+          payload,
+          etag,
+        },
+        Addrd(req, addr),
+      ) => {
         let mut resp = Resp::non(&req);
         resp.set_code(code);
         resp.set_payload(payload);
@@ -130,7 +137,8 @@ impl<P, E> Run<P, E>
   ///
   /// Each "maybe" branch corresponds roughly to a route / RESTful CoAP resource.
   pub fn maybe<F>(self, mut f: F) -> Self
-    where F: FnMut(Ap<Hydrated, P, (), E>) -> Ap<Complete, P, (), E>
+  where
+    F: FnMut(Ap<Hydrated, P, (), E>) -> Ap<Complete, P, (), E>,
   {
     match self {
       | Run::Matched(m) => Run::Matched(m),
@@ -160,17 +168,19 @@ impl Init<fn()> {
 /// Servers are thread-safe, meaning that [`run`](BlockingServer::run) may
 /// be invoked concurrently by multiple worker threads.
 pub trait BlockingServer<S>: Sized + Platform<S>
-  where S: Step<Self::Types, PollReq = Addrd<Req<Self::Types>>, PollResp = Addrd<Resp<Self::Types>>>
+where
+  S: Step<Self::Types, PollReq = Addrd<Req<Self::Types>>, PollResp = Addrd<Resp<Self::Types>>>,
 {
   #[allow(missing_docs)]
   fn run<I, R>(&self, init: Init<I>, mut handle_request: R) -> Result<(), Error<Self::Error>>
-    where I: FnMut(),
-          R: FnMut(Run<Self::Types, Self::Error>) -> Run<Self::Types, Self::Error>
+  where
+    I: FnMut(),
+    R: FnMut(Run<Self::Types, Self::Error>) -> Run<Self::Types, Self::Error>,
   {
     let mut startup_msg = String::<1000>::default();
     write!(
-           &mut startup_msg,
-           r#"
+      &mut startup_msg,
+      r#"
 =====================================
 
                        _
@@ -186,11 +196,13 @@ pub trait BlockingServer<S>: Sized + Platform<S>
   listening on `{}`.
 
 ====================================="#,
-           self.socket().local_addr()
-    ).ok();
+      self.socket().local_addr()
+    )
+    .ok();
 
-    self.log(log::Level::Info, startup_msg)
-        .map_err(Error::Other)?;
+    self
+      .log(log::Level::Info, startup_msg)
+      .map_err(Error::Other)?;
 
     init.0.map(|mut f| f());
 
@@ -199,25 +211,30 @@ pub trait BlockingServer<S>: Sized + Platform<S>
       match handle_request(Run::Unmatched(req)) {
         | Run::Unmatched(req) => {
           let mut msg = String::<1000>::default();
-          write!(&mut msg,
-                 "IGNORING Request, not handled by any routes! {:?}",
-                 req).ok();
+          write!(
+            &mut msg,
+            "IGNORING Request, not handled by any routes! {:?}",
+            req
+          )
+          .ok();
           self.log(log::Level::Error, msg).map_err(Error::Other)?;
 
           let mut msg = String::<1000>::default();
           write!(
-                 &mut msg,
-                 r#"
+            &mut msg,
+            r#"
 Do you need a fallback?
   server.run(|run| run.maybe(..)
                       .maybe(..)
                       .maybe(..)
                       .maybe(|ap| ap.bind(|_| respond::not_found(\"Not found!\"))))
 )"#
-          ).ok();
+          )
+          .ok();
         },
-        | Run::Matched(rep) => nb::block!(self.send_msg(rep.clone())).map_err(Error::Other)
-                                                                     .map(|_| ())?,
+        | Run::Matched(rep) => nb::block!(self.send_msg(rep.clone()))
+          .map_err(Error::Other)
+          .map(|_| ())?,
         | Run::Error(e) => break Err(e),
       }
     }
@@ -225,8 +242,9 @@ Do you need a fallback?
 }
 
 impl<S, T> BlockingServer<S> for T
-  where S: Step<Self::Types, PollReq = Addrd<Req<Self::Types>>, PollResp = Addrd<Resp<Self::Types>>>,
-        T: Sized + Platform<S>
+where
+  S: Step<Self::Types, PollReq = Addrd<Req<Self::Types>>, PollResp = Addrd<Resp<Self::Types>>>,
+  T: Sized + Platform<S>,
 {
 }
 
@@ -239,10 +257,10 @@ mod tests {
     #[allow(dead_code)]
     fn foo() {
       let _ = Run::<Std<dtls::Y>, _>::Error(Error::Other(())).maybe(|a| {
-                a.pipe(path::segment::check::next_equals("user"))
-                 .pipe(path::segment::param::u32)
-                 .bind(|(_, user_id)| respond::ok(format!("hello, user ID {}!", user_id).into()))
-              });
+        a.pipe(path::segment::check::next_equals("user"))
+          .pipe(path::segment::param::u32)
+          .bind(|(_, user_id)| respond::ok(format!("hello, user ID {}!", user_id).into()))
+      });
     }
   }
 }

@@ -36,7 +36,8 @@ use toad_len::Len;
 
 /// Operations on ordered indexed collections
 pub trait Indexed<T>
-  where Self: Len + Deref<Target = [T]>
+where
+  Self: Len + Deref<Target = [T]>,
 {
   /// Insert a new element at `ix`, shifting all other elements to the right.
   ///
@@ -181,7 +182,8 @@ pub trait Indexed<T>
   /// assert_eq!(v, vec![5]);
   /// ```
   fn drop_while<F>(&mut self, f: F)
-    where F: for<'a> Fn(&'a T) -> bool
+  where
+    F: for<'a> Fn(&'a T) -> bool,
   {
     match self.get(0) {
       | Some(t) if !f(&t) => return,
@@ -200,7 +202,8 @@ pub trait Indexed<T>
 /// - `Vec` is `Reserve`, and invokes `Vec::with_capacity`
 /// - `tinyvec::ArrayVec` is `Reserve` and invokes `Default::default()` because creating an `ArrayVec` automatically allocates the required space on the stack.
 pub trait Reserve
-  where Self: Default
+where
+  Self: Default,
 {
   /// Create an instance of the collection with a given capacity.
   ///
@@ -218,7 +221,8 @@ pub trait Reserve
 ///
 /// If self was longer, drops elements up to `len`
 pub trait Trunc
-  where Self: Sized
+where
+  Self: Sized,
 {
   #[allow(missing_docs)]
   fn trunc(&mut self, len: usize) -> ();
@@ -236,7 +240,9 @@ impl<T> Trunc for Vec<T> {
   }
 }
 
-impl<T, const N: usize> Trunc for tinyvec::ArrayVec<[T; N]> where T: Default
+impl<T, const N: usize> Trunc for tinyvec::ArrayVec<[T; N]>
+where
+  T: Default,
 {
   fn trunc(&mut self, len: usize) -> () {
     self.truncate(len)
@@ -251,21 +257,24 @@ impl<T, const N: usize> Trunc for tinyvec::ArrayVec<[T; N]> where T: Default
 pub trait Filled<T>: Sized {
   #[allow(missing_docs)]
   fn filled(t: T) -> Option<Self>
-    where T: Copy
+  where
+    T: Copy,
   {
     Self::filled_using(|| t)
   }
 
   #[allow(missing_docs)]
   fn filled_default() -> Option<Self>
-    where T: Default
+  where
+    T: Default,
   {
     Self::filled_using(|| Default::default())
   }
 
   #[allow(missing_docs)]
   fn filled_using<F>(f: F) -> Option<Self>
-    where F: Fn() -> T;
+  where
+    F: Fn() -> T;
 }
 
 #[cfg(feature = "alloc")]
@@ -278,7 +287,8 @@ impl<T> Reserve for Vec<T> {
 #[cfg(feature = "alloc")]
 impl<T> Filled<T> for Vec<T> {
   fn filled_using<F>(_: F) -> Option<Self>
-    where F: Fn() -> T
+  where
+    F: Fn() -> T,
   {
     None
   }
@@ -286,16 +296,20 @@ impl<T> Filled<T> for Vec<T> {
 
 impl<A: tinyvec::Array> Reserve for tinyvec::ArrayVec<A> {}
 
-impl<T, const N: usize> Filled<T> for tinyvec::ArrayVec<[T; N]> where T: Default
+impl<T, const N: usize> Filled<T> for tinyvec::ArrayVec<[T; N]>
+where
+  T: Default,
 {
   fn filled_using<F>(f: F) -> Option<Self>
-    where F: Fn() -> T
+  where
+    F: Fn() -> T,
   {
     Some(core::iter::repeat(()).take(N).map(|_| f()).collect())
   }
 
   fn filled(t: T) -> Option<Self>
-    where T: Copy
+  where
+    T: Copy,
   {
     Some(Self::from([t; N]))
   }
@@ -347,7 +361,8 @@ pub trait Array:
 
 /// Collections that support extending themselves mutably from copyable slices
 pub trait AppendCopy<T>
-  where T: Copy
+where
+  T: Copy,
 {
   /// Extend self mutably, copying from a slice.
   ///
@@ -360,7 +375,9 @@ pub trait AppendCopy<T>
 }
 
 #[cfg(feature = "alloc")]
-impl<T> AppendCopy<T> for Vec<T> where T: Copy
+impl<T> AppendCopy<T> for Vec<T>
+where
+  T: Copy,
 {
   fn append_copy(&mut self, i: &[T]) {
     self.extend(i);
@@ -368,8 +385,9 @@ impl<T> AppendCopy<T> for Vec<T> where T: Copy
 }
 
 impl<T, A> AppendCopy<T> for tinyvec::ArrayVec<A>
-  where T: Copy,
-        A: tinyvec::Array<Item = T>
+where
+  T: Copy,
+  A: tinyvec::Array<Item = T>,
 {
   fn append_copy(&mut self, i: &[T]) {
     self.extend_from_slice(i);
@@ -397,15 +415,17 @@ impl<T> Indexed<T> for Vec<T> {
 }
 
 impl<A, T> Array for tinyvec::ArrayVec<A>
-  where Self: Filled<T> + Trunc,
-        A: tinyvec::Array<Item = T>
+where
+  Self: Filled<T> + Trunc,
+  A: tinyvec::Array<Item = T>,
 {
   type Item = T;
 }
 
 impl<A> Indexed<A::Item> for tinyvec::ArrayVec<A>
-  where Self: Filled<A::Item> + Trunc,
-        A: tinyvec::Array
+where
+  Self: Filled<A::Item> + Trunc,
+  A: tinyvec::Array,
 {
   fn insert(&mut self, ix: usize, t: A::Item) {
     tinyvec::ArrayVec::insert(self, ix, t)
