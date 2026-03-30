@@ -55,20 +55,26 @@ macro_rules! from_net_impl {
 impl InetAddress {
   /// [`InetAddress getByAddress(byte[])`](https://docs.oracle.com/en/java/javase/19/docs/api/java.base/java/net/InetAddress.html#getByAddress(byte%5B%5D))
   pub fn new_ipv4(e: &mut java::Env, addr: [u8; 4]) -> Self {
-    INETADDRESS_GET_BY_ADDRESS.invoke(e,
-                                      addr.iter()
-                                          .copied()
-                                          .map(|u| i8::from_be_bytes(u.to_be_bytes()))
-                                          .collect())
+    INETADDRESS_GET_BY_ADDRESS.invoke(
+      e,
+      addr
+        .iter()
+        .copied()
+        .map(|u| i8::from_be_bytes(u.to_be_bytes()))
+        .collect(),
+    )
   }
 
   /// [`InetAddress getByAddress(byte[])`](https://docs.oracle.com/en/java/javase/19/docs/api/java.base/java/net/InetAddress.html#getByAddress(byte%5B%5D))
   pub fn new_ipv6(e: &mut java::Env, addr: [u8; 16]) -> Self {
-    INETADDRESS_GET_BY_ADDRESS.invoke(e,
-                                      addr.iter()
-                                          .copied()
-                                          .map(|u| i8::from_be_bytes(u.to_be_bytes()))
-                                          .collect())
+    INETADDRESS_GET_BY_ADDRESS.invoke(
+      e,
+      addr
+        .iter()
+        .copied()
+        .map(|u| i8::from_be_bytes(u.to_be_bytes()))
+        .collect(),
+    )
   }
 
   fn get_address(&self, e: &mut java::Env) -> Vec<u8> {
@@ -76,10 +82,11 @@ impl InetAddress {
       java::Method::new("getAddress");
 
     let bytes = GET_ADDRESS.invoke(e, self);
-    bytes.iter()
-         .copied()
-         .map(|i| u8::from_be_bytes(i.to_be_bytes()))
-         .collect::<Vec<u8>>()
+    bytes
+      .iter()
+      .copied()
+      .map(|i| u8::from_be_bytes(i.to_be_bytes()))
+      .collect::<Vec<u8>>()
   }
 
   /// Convert `InetAddress` to `std::net::IpAddr`

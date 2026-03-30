@@ -73,9 +73,9 @@ impl<T: AsRef<[u8]>> Cursor<T> {
   #[allow(clippy::should_implement_trait)]
   pub fn next(&mut self) -> Option<u8> {
     self.take_exact(1).and_then(|a| match a {
-                        | &[a] => Some(a),
-                        | _ => None,
-                      })
+      | &[a] => Some(a),
+      | _ => None,
+    })
   }
 
   /// Take `n` bytes from the cursor, stopping early if
@@ -83,15 +83,12 @@ impl<T: AsRef<[u8]>> Cursor<T> {
   ///
   /// Runs in O(1) time.
   pub fn take(&mut self, n: usize) -> &[u8] {
-    Self::peek_(self.len, self.cursor, &self.t, n).map(|a| {
-                                                    Self::skip_(&mut self.cursor, self.len, n);
-                                                    a
-                                                  })
-                                                  .unwrap_or_else(|| {
-                                                    Self::take_until_end_(&mut self.cursor,
-                                                                          self.len,
-                                                                          &self.t)
-                                                  })
+    Self::peek_(self.len, self.cursor, &self.t, n)
+      .map(|a| {
+        Self::skip_(&mut self.cursor, self.len, n);
+        a
+      })
+      .unwrap_or_else(|| Self::take_until_end_(&mut self.cursor, self.len, &self.t))
   }
 
   /// Take `n` bytes from the cursor, returning None if
@@ -100,9 +97,9 @@ impl<T: AsRef<[u8]>> Cursor<T> {
   /// Runs in O(1) time.
   pub fn take_exact(&mut self, n: usize) -> Option<&[u8]> {
     Self::peek_(self.len, self.cursor, &self.t, n).map(|a| {
-                                                    Self::skip_(&mut self.cursor, self.len, n);
-                                                    a
-                                                  })
+      Self::skip_(&mut self.cursor, self.len, n);
+      a
+    })
   }
 
   /// Without advancing the position, look at the next
@@ -143,15 +140,16 @@ impl<T: AsRef<[u8]>> Cursor<T> {
       return &[];
     }
 
-    (self.cursor..self.len).into_iter()
-                           .take_while(|ix| f(self.t.as_ref()[*ix]))
-                           .last()
-                           .map(|end_ix| {
-                             let out = &self.t.as_ref()[self.cursor..=end_ix];
-                             self.cursor = end_ix + 1;
-                             out
-                           })
-                           .unwrap_or(&[])
+    (self.cursor..self.len)
+      .into_iter()
+      .take_while(|ix| f(self.t.as_ref()[*ix]))
+      .last()
+      .map(|end_ix| {
+        let out = &self.t.as_ref()[self.cursor..=end_ix];
+        self.cursor = end_ix + 1;
+        out
+      })
+      .unwrap_or(&[])
   }
 
   /// Whether the cursor has reached the end
@@ -269,8 +267,9 @@ mod tests {
   #[test]
   pub fn take_while() {
     let til_slash = |c: &mut Cursor<&str>| {
-      core::str::from_utf8(c.take_while(|b| (b as char) != '/')).unwrap()
-                                                                .to_string()
+      core::str::from_utf8(c.take_while(|b| (b as char) != '/'))
+        .unwrap()
+        .to_string()
     };
 
     let mut cur = Cursor::new("abc/def");

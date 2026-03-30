@@ -99,9 +99,11 @@ pub type Req = crate::req::Req<Platform>;
 pub type Resp = crate::resp::Resp<Platform>;
 
 pub fn snapshot() -> Snapshot {
-  Snapshot { config: Default::default(),
-             time: ClockMock::instant(0),
-             recvd_dgram: None }
+  Snapshot {
+    config: Default::default(),
+    time: ClockMock::instant(0),
+    recvd_dgram: None,
+  }
 }
 
 pub fn dummy_addr() -> SocketAddr {
@@ -121,80 +123,91 @@ pub mod stepfn {
   use super::*;
 
   pub trait poll_req<Self_, Req, E>
-    where Self: 'static
-            + for<'a> FnMut(&'a Self_,
-                          &'a Snapshot,
-                          &'a mut Vec<Effect>)
-                          -> Option<nb::Result<Req, E>>
+  where
+    Self: 'static
+      + for<'a> FnMut(&'a Self_, &'a Snapshot, &'a mut Vec<Effect>) -> Option<nb::Result<Req, E>>,
   {
   }
-  impl<T, Self_, Req, E> poll_req<Self_, Req, E> for T
-    where T: 'static
-            + for<'a> FnMut(&'a Self_,
-                          &'a Snapshot,
-                          &'a mut Vec<Effect>)
-                          -> Option<nb::Result<Req, E>>
+  impl<T, Self_, Req, E> poll_req<Self_, Req, E> for T where
+    T: 'static
+      + for<'a> FnMut(&'a Self_, &'a Snapshot, &'a mut Vec<Effect>) -> Option<nb::Result<Req, E>>
   {
   }
 
   pub trait poll_resp<Self_, Resp, E>
-    where Self: 'static
-            + for<'a> FnMut(&'a Self_,
-                          &'a Snapshot,
-                          &'a mut Vec<Effect>,
-                          Token,
-                          SocketAddr) -> Option<nb::Result<Resp, E>>
+  where
+    Self: 'static
+      + for<'a> FnMut(
+        &'a Self_,
+        &'a Snapshot,
+        &'a mut Vec<Effect>,
+        Token,
+        SocketAddr,
+      ) -> Option<nb::Result<Resp, E>>,
   {
   }
-  impl<T, Self_, Resp, E> poll_resp<Self_, Resp, E> for T
-    where T: 'static
-            + for<'a> FnMut(&'a Self_,
-                          &'a Snapshot,
-                          &'a mut Vec<Effect>,
-                          Token,
-                          SocketAddr) -> Option<nb::Result<Resp, E>>
+  impl<T, Self_, Resp, E> poll_resp<Self_, Resp, E> for T where
+    T: 'static
+      + for<'a> FnMut(
+        &'a Self_,
+        &'a Snapshot,
+        &'a mut Vec<Effect>,
+        Token,
+        SocketAddr,
+      ) -> Option<nb::Result<Resp, E>>
   {
   }
 
   pub trait notify<Self_, E>
-    where Self: 'static + for<'a> FnMut(&'a Self_, &'a str, &'a mut Vec<Effect>) -> Result<(), E>
+  where
+    Self: 'static + for<'a> FnMut(&'a Self_, &'a str, &'a mut Vec<Effect>) -> Result<(), E>,
   {
   }
-  impl<T, Self_, E> notify<Self_, E> for T
-    where T: 'static + for<'a> FnMut(&'a Self_, &'a str, &'a mut Vec<Effect>) -> Result<(), E>
+  impl<T, Self_, E> notify<Self_, E> for T where
+    T: 'static + for<'a> FnMut(&'a Self_, &'a str, &'a mut Vec<Effect>) -> Result<(), E>
   {
   }
 
   pub trait before_message_sent<Self_, E>
-    where Self: 'static
-            + for<'a> FnMut(&'a Self_,
-                          &'a Snapshot,
-                          &'a mut Vec<Effect>,
-                          &'a mut Addrd<Message>) -> Result<(), E>
+  where
+    Self: 'static
+      + for<'a> FnMut(
+        &'a Self_,
+        &'a Snapshot,
+        &'a mut Vec<Effect>,
+        &'a mut Addrd<Message>,
+      ) -> Result<(), E>,
   {
   }
-  impl<T, Self_, E> before_message_sent<Self_, E> for T
-    where T: 'static
-            + for<'a> FnMut(&'a Self_,
-                          &'a Snapshot,
-                          &'a mut Vec<Effect>,
-                          &'a mut Addrd<Message>) -> Result<(), E>
+  impl<T, Self_, E> before_message_sent<Self_, E> for T where
+    T: 'static
+      + for<'a> FnMut(
+        &'a Self_,
+        &'a Snapshot,
+        &'a mut Vec<Effect>,
+        &'a mut Addrd<Message>,
+      ) -> Result<(), E>
   {
   }
   pub trait on_message_sent<Self_, E>
-    where Self: 'static
-            + for<'a> FnMut(&'a Self_,
-                          &'a Snapshot,
-                          &'a mut Vec<Effect>,
-                          &'a Addrd<Message>) -> Result<(), E>
+  where
+    Self: 'static
+      + for<'a> FnMut(
+        &'a Self_,
+        &'a Snapshot,
+        &'a mut Vec<Effect>,
+        &'a Addrd<Message>,
+      ) -> Result<(), E>,
   {
   }
-  impl<T, Self_, E> on_message_sent<Self_, E> for T
-    where T: 'static
-            + for<'a> FnMut(&'a Self_,
-                          &'a Snapshot,
-                          &'a mut Vec<Effect>,
-                          &'a Addrd<Message>) -> Result<(), E>
+  impl<T, Self_, E> on_message_sent<Self_, E> for T where
+    T: 'static
+      + for<'a> FnMut(
+        &'a Self_,
+        &'a Snapshot,
+        &'a mut Vec<Effect>,
+        &'a Addrd<Message>,
+      ) -> Result<(), E>
   {
   }
 }
@@ -216,7 +229,8 @@ impl<State, Rq, Rp, E> MockStep<State, Rq, Rp, E> {
   }
 
   pub fn init_default(&self) -> &Self
-    where State: Default
+  where
+    State: Default,
   {
     self.init(Default::default())
   }
@@ -254,17 +268,20 @@ impl<State, Rq, Rp, E> MockStep<State, Rq, Rp, E> {
 
 impl<State, Rq, Rp, E> Default for MockStep<State, Rq, Rp, E> {
   fn default() -> Self {
-    Self { poll_req: RwLock::new(Box::new(|_, _, _| None)),
-           poll_resp: RwLock::new(Box::new(|_, _, _, _, _| None)),
-           notify: RwLock::new(Box::new(|_, _, _| Ok(()))),
-           before_message_sent: RwLock::new(Box::new(|_, _, _, _| Ok(()))),
-           on_message_sent: RwLock::new(Box::new(|_, _, _, _| Ok(()))),
-           state: Stem::new(None) }
+    Self {
+      poll_req: RwLock::new(Box::new(|_, _, _| None)),
+      poll_resp: RwLock::new(Box::new(|_, _, _, _, _| None)),
+      notify: RwLock::new(Box::new(|_, _, _| Ok(()))),
+      before_message_sent: RwLock::new(Box::new(|_, _, _, _| Ok(()))),
+      on_message_sent: RwLock::new(Box::new(|_, _, _, _| Ok(()))),
+      state: Stem::new(None),
+    }
   }
 }
 
 impl<State, Rq, Rp, E> crate::step::Step<Platform> for MockStep<State, Rq, Rp, E>
-  where E: From<()> + crate::step::Error
+where
+  E: From<()> + crate::step::Error,
 {
   type PollReq = Rq;
   type PollResp = Rp;
@@ -275,45 +292,50 @@ impl<State, Rq, Rp, E> crate::step::Step<Platform> for MockStep<State, Rq, Rp, E
     &()
   }
 
-  fn poll_req(&self,
-              snap: &platform::Snapshot<Platform>,
-              effects: &mut <Platform as platform::PlatformTypes>::Effects)
-              -> step::StepOutput<Self::PollReq, Self::Error> {
+  fn poll_req(
+    &self,
+    snap: &platform::Snapshot<Platform>,
+    effects: &mut <Platform as platform::PlatformTypes>::Effects,
+  ) -> step::StepOutput<Self::PollReq, Self::Error> {
     let mut g = self.poll_req.try_write().unwrap();
     g.as_mut()(self, snap, effects)
   }
 
-  fn poll_resp(&self,
-               snap: &platform::Snapshot<Platform>,
-               effects: &mut <Platform as platform::PlatformTypes>::Effects,
-               token: Token,
-               addr: SocketAddr)
-               -> step::StepOutput<Self::PollResp, Self::Error> {
+  fn poll_resp(
+    &self,
+    snap: &platform::Snapshot<Platform>,
+    effects: &mut <Platform as platform::PlatformTypes>::Effects,
+    token: Token,
+    addr: SocketAddr,
+  ) -> step::StepOutput<Self::PollResp, Self::Error> {
     let mut g = self.poll_resp.try_write().unwrap();
     g.as_mut()(self, snap, effects, token, addr)
   }
 
   fn notify<Path>(&self, path: Path, effects: &mut Vec<Effect>) -> Result<(), Self::Error>
-    where Path: AsRef<str> + Clone
+  where
+    Path: AsRef<str> + Clone,
   {
     let mut g = self.notify.try_write().unwrap();
     g.as_mut()(self, path.as_ref(), effects)
   }
 
-  fn before_message_sent(&self,
-                         snap: &platform::Snapshot<Platform>,
-                         effects: &mut <Platform as platform::PlatformTypes>::Effects,
-                         msg: &mut Addrd<platform::Message<Platform>>)
-                         -> Result<(), Self::Error> {
+  fn before_message_sent(
+    &self,
+    snap: &platform::Snapshot<Platform>,
+    effects: &mut <Platform as platform::PlatformTypes>::Effects,
+    msg: &mut Addrd<platform::Message<Platform>>,
+  ) -> Result<(), Self::Error> {
     let mut g = self.before_message_sent.try_write().unwrap();
     g.as_mut()(self, snap, effects, msg)
   }
 
-  fn on_message_sent(&self,
-                     snap: &platform::Snapshot<Platform>,
-                     effects: &mut Vec<Effect>,
-                     msg: &Addrd<platform::Message<Platform>>)
-                     -> Result<(), Self::Error> {
+  fn on_message_sent(
+    &self,
+    snap: &platform::Snapshot<Platform>,
+    effects: &mut Vec<Effect>,
+    msg: &Addrd<platform::Message<Platform>>,
+  ) -> Result<(), Self::Error> {
     let mut g = self.on_message_sent.try_write().unwrap();
     g.as_mut()(self, snap, effects, msg)
   }
@@ -332,8 +354,10 @@ pub struct Timeout {
 
 impl Timeout {
   pub fn new(dur: Duration) -> Self {
-    Self { state: Arc::new(Mutex::new(TimeoutState::WillPanic)),
-           dur }
+    Self {
+      state: Arc::new(Mutex::new(TimeoutState::WillPanic)),
+      dur,
+    }
   }
 
   pub fn cancel(state: Arc<Mutex<TimeoutState>>) {
@@ -395,20 +419,25 @@ pub struct SockMock {
 
 impl SockMock {
   pub fn new() -> Self {
-    Self { rx: Default::default(),
-           tx: Default::default() }
+    Self {
+      rx: Default::default(),
+      tx: Default::default(),
+    }
   }
 
-  pub fn send_msg<P: platform::PlatformTypes>(rx: &Arc<Mutex<Vec<Addrd<Vec<u8>>>>>,
-                                              msg: Addrd<platform::Message<P>>) {
+  pub fn send_msg<P: platform::PlatformTypes>(
+    rx: &Arc<Mutex<Vec<Addrd<Vec<u8>>>>>,
+    msg: Addrd<platform::Message<P>>,
+  ) {
     rx.lock()
       .unwrap()
       .push(msg.map(|msg| msg.try_into_bytes().unwrap()));
   }
 
-  pub fn await_msg<P: platform::PlatformTypes>(addr: SocketAddr,
-                                               tx: &Arc<Mutex<Vec<Addrd<Vec<u8>>>>>)
-                                               -> platform::Message<P> {
+  pub fn await_msg<P: platform::PlatformTypes>(
+    addr: SocketAddr,
+    tx: &Arc<Mutex<Vec<Addrd<Vec<u8>>>>>,
+  ) -> platform::Message<P> {
     let attempt = || {
       tx.lock()
         .unwrap()
@@ -444,10 +473,11 @@ impl Socket for SockMock {
 
     let dgram = rx.drain(0..1).next().unwrap();
 
-    dgram.data()
-         .iter()
-         .enumerate()
-         .for_each(|(ix, byte)| buf[ix] = *byte);
+    dgram
+      .data()
+      .iter()
+      .enumerate()
+      .for_each(|(ix, byte)| buf[ix] = *byte);
 
     Ok(dgram.map(|bytes| bytes.len()))
   }

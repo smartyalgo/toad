@@ -7,7 +7,9 @@ use crate::java;
 /// the [`java::lang::Object`].
 pub struct NoUpcast<T>(java::lang::Object, PhantomData<T>);
 
-impl<T> NoUpcast<T> where T: java::Class
+impl<T> NoUpcast<T>
+where
+  T: java::Class,
 {
   /// Unwrap, yielding the object reference
   pub fn object(self) -> java::lang::Object {
@@ -20,12 +22,16 @@ impl<T> NoUpcast<T> where T: java::Class
   }
 }
 
-impl<T> java::Class for NoUpcast<T> where T: java::Class
+impl<T> java::Class for NoUpcast<T>
+where
+  T: java::Class,
 {
   const PATH: &'static str = T::PATH;
 }
 
-impl<T> java::Object for NoUpcast<T> where T: java::Class
+impl<T> java::Object for NoUpcast<T>
+where
+  T: java::Class,
 {
   fn upcast(_: &mut java::Env, jobj: java::lang::Object) -> Self {
     Self(jobj, PhantomData)
