@@ -34,7 +34,8 @@ impl Signature {
 
   /// Get the `Signature` instance for type `T`
   pub const fn of<T>() -> Self
-    where T: Type
+  where
+    T: Type,
   {
     T::SIG
   }
@@ -45,9 +46,10 @@ impl Signature {
     use jni::signature::ReturnType::*;
 
     let ret = self.as_str();
-    let ret = ret.split(')')
-                 .nth(1)
-                 .unwrap_or_else(|| panic!("{:?} is not a function signature", self));
+    let ret = ret
+      .split(')')
+      .nth(1)
+      .unwrap_or_else(|| panic!("{:?} is not a function signature", self));
 
     if ret.starts_with(Self::ARRAY_OF.as_str()) {
       Array
@@ -55,24 +57,26 @@ impl Signature {
       Object
     } else {
       Primitive(match Signature::empty().push_str(ret) {
-                  | <()>::SIG => Void,
-                  | bool::SIG => Boolean,
-                  | u16::SIG => Char,
-                  | i8::SIG => Byte,
-                  | i16::SIG => Short,
-                  | i32::SIG => Int,
-                  | i64::SIG => Long,
-                  | f32::SIG => Float,
-                  | f64::SIG => Double,
-                  | _ => unreachable!(),
-                })
+        | <()>::SIG => Void,
+        | bool::SIG => Boolean,
+        | u16::SIG => Char,
+        | i8::SIG => Byte,
+        | i16::SIG => Short,
+        | i32::SIG => Int,
+        | i64::SIG => Long,
+        | f32::SIG => Float,
+        | f64::SIG => Double,
+        | _ => unreachable!(),
+      })
     }
   }
 
   const fn empty() -> Self {
-    Self { bytes: [0; 256],
-           len: 0,
-           finished: false }
+    Self {
+      bytes: [0; 256],
+      len: 0,
+      finished: false,
+    }
   }
 
   pub(crate) const fn function() -> Self {
@@ -84,9 +88,10 @@ impl Signature {
   }
 
   const fn class(path: &'static str) -> Self {
-    Self::empty().concat(Self::CLASS_PATH_OPEN)
-                 .push_str(path)
-                 .concat(Self::CLASS_PATH_CLOSE)
+    Self::empty()
+      .concat(Self::CLASS_PATH_OPEN)
+      .push_str(path)
+      .concat(Self::CLASS_PATH_CLOSE)
   }
 
   const fn next(&self) -> usize {
@@ -225,7 +230,9 @@ pub trait Type: type_sealed::TypeSealed {
   fn jni() -> jni::signature::JavaType;
 }
 
-impl<T> Type for T where T: java::Class
+impl<T> Type for T
+where
+  T: java::Class,
 {
   const SIG: Signature = Signature::class(T::PATH);
   fn jni() -> jni::signature::JavaType {
@@ -233,7 +240,9 @@ impl<T> Type for T where T: java::Class
   }
 }
 
-impl<T> Type for Result<T, java::lang::Throwable> where T: java::Class
+impl<T> Type for Result<T, java::lang::Throwable>
+where
+  T: java::Class,
 {
   const SIG: Signature = Signature::class(T::PATH);
   fn jni() -> jni::signature::JavaType {
@@ -311,7 +320,9 @@ impl Type for bool {
   }
 }
 
-impl<T> Type for Vec<T> where T: Type
+impl<T> Type for Vec<T>
+where
+  T: Type,
 {
   const SIG: Signature = Signature::array_of(T::SIG);
   fn jni() -> jni::signature::JavaType {
@@ -319,7 +330,9 @@ impl<T> Type for Vec<T> where T: Type
   }
 }
 
-impl<R> Type for fn() -> R where R: Type
+impl<R> Type for fn() -> R
+where
+  R: Type,
 {
   const SIG: Signature = Signature::function().ret(R::SIG);
   fn jni() -> jni::signature::JavaType {
@@ -331,8 +344,9 @@ impl<R> Type for fn() -> R where R: Type
 }
 
 impl<R, A> Type for fn(A) -> R
-  where R: Type,
-        A: Type
+where
+  R: Type,
+  A: Type,
 {
   const SIG: Signature = Signature::function().concat(A::SIG).ret(R::SIG);
   fn jni() -> jni::signature::JavaType {
@@ -344,13 +358,15 @@ impl<R, A> Type for fn(A) -> R
 }
 
 impl<R, A, B> Type for fn(A, B) -> R
-  where R: Type,
-        A: Type,
-        B: Type
+where
+  R: Type,
+  A: Type,
+  B: Type,
 {
-  const SIG: Signature = Signature::function().concat(A::SIG)
-                                              .concat(B::SIG)
-                                              .ret(R::SIG);
+  const SIG: Signature = Signature::function()
+    .concat(A::SIG)
+    .concat(B::SIG)
+    .ret(R::SIG);
   fn jni() -> jni::signature::JavaType {
     jni::signature::JavaType::Method(Box::new(jni::signature::TypeSignature {
       args: vec![A::jni(), B::jni()],
@@ -360,15 +376,17 @@ impl<R, A, B> Type for fn(A, B) -> R
 }
 
 impl<R, A, B, C> Type for fn(A, B, C) -> R
-  where R: Type,
-        A: Type,
-        B: Type,
-        C: Type
+where
+  R: Type,
+  A: Type,
+  B: Type,
+  C: Type,
 {
-  const SIG: Signature = Signature::function().concat(A::SIG)
-                                              .concat(B::SIG)
-                                              .concat(C::SIG)
-                                              .ret(R::SIG);
+  const SIG: Signature = Signature::function()
+    .concat(A::SIG)
+    .concat(B::SIG)
+    .concat(C::SIG)
+    .ret(R::SIG);
   fn jni() -> jni::signature::JavaType {
     jni::signature::JavaType::Method(Box::new(jni::signature::TypeSignature {
       args: vec![A::jni(), B::jni(), C::jni()],
@@ -378,17 +396,19 @@ impl<R, A, B, C> Type for fn(A, B, C) -> R
 }
 
 impl<R, A, B, C, D> Type for fn(A, B, C, D) -> R
-  where R: Type,
-        A: Type,
-        B: Type,
-        C: Type,
-        D: Type
+where
+  R: Type,
+  A: Type,
+  B: Type,
+  C: Type,
+  D: Type,
 {
-  const SIG: Signature = Signature::function().concat(A::SIG)
-                                              .concat(B::SIG)
-                                              .concat(C::SIG)
-                                              .concat(D::SIG)
-                                              .ret(R::SIG);
+  const SIG: Signature = Signature::function()
+    .concat(A::SIG)
+    .concat(B::SIG)
+    .concat(C::SIG)
+    .concat(D::SIG)
+    .ret(R::SIG);
   fn jni() -> jni::signature::JavaType {
     jni::signature::JavaType::Method(Box::new(jni::signature::TypeSignature {
       args: vec![A::jni(), B::jni(), C::jni(), D::jni()],
@@ -398,19 +418,21 @@ impl<R, A, B, C, D> Type for fn(A, B, C, D) -> R
 }
 
 impl<R, A, B, C, D, E> Type for fn(A, B, C, D, E) -> R
-  where R: Type,
-        A: Type,
-        B: Type,
-        C: Type,
-        D: Type,
-        E: Type
+where
+  R: Type,
+  A: Type,
+  B: Type,
+  C: Type,
+  D: Type,
+  E: Type,
 {
-  const SIG: Signature = Signature::function().concat(A::SIG)
-                                              .concat(B::SIG)
-                                              .concat(C::SIG)
-                                              .concat(D::SIG)
-                                              .concat(E::SIG)
-                                              .ret(R::SIG);
+  const SIG: Signature = Signature::function()
+    .concat(A::SIG)
+    .concat(B::SIG)
+    .concat(C::SIG)
+    .concat(D::SIG)
+    .concat(E::SIG)
+    .ret(R::SIG);
   fn jni() -> jni::signature::JavaType {
     jni::signature::JavaType::Method(Box::new(jni::signature::TypeSignature {
       args: vec![A::jni(), B::jni(), C::jni(), D::jni(), E::jni()],
@@ -429,23 +451,39 @@ pub mod test {
     use jni::signature::ReturnType::*;
 
     assert_eq!(Signature::of::<fn()>().return_type(), Primitive(Void));
-    assert_eq!(Signature::of::<fn(String) -> String>().return_type(),
-               Object);
-    assert_eq!(Signature::of::<fn(String) -> Vec<String>>().return_type(),
-               Array);
-    assert_eq!(Signature::of::<fn() -> u16>().return_type(),
-               Primitive(Char));
-    assert_eq!(Signature::of::<fn() -> bool>().return_type(),
-               Primitive(Boolean));
+    assert_eq!(
+      Signature::of::<fn(String) -> String>().return_type(),
+      Object
+    );
+    assert_eq!(
+      Signature::of::<fn(String) -> Vec<String>>().return_type(),
+      Array
+    );
+    assert_eq!(
+      Signature::of::<fn() -> u16>().return_type(),
+      Primitive(Char)
+    );
+    assert_eq!(
+      Signature::of::<fn() -> bool>().return_type(),
+      Primitive(Boolean)
+    );
     assert_eq!(Signature::of::<fn() -> i8>().return_type(), Primitive(Byte));
-    assert_eq!(Signature::of::<fn() -> i16>().return_type(),
-               Primitive(Short));
+    assert_eq!(
+      Signature::of::<fn() -> i16>().return_type(),
+      Primitive(Short)
+    );
     assert_eq!(Signature::of::<fn() -> i32>().return_type(), Primitive(Int));
-    assert_eq!(Signature::of::<fn() -> i64>().return_type(),
-               Primitive(Long));
-    assert_eq!(Signature::of::<fn() -> f32>().return_type(),
-               Primitive(Float));
-    assert_eq!(Signature::of::<fn() -> f64>().return_type(),
-               Primitive(Double));
+    assert_eq!(
+      Signature::of::<fn() -> i64>().return_type(),
+      Primitive(Long)
+    );
+    assert_eq!(
+      Signature::of::<fn() -> f32>().return_type(),
+      Primitive(Float)
+    );
+    assert_eq!(
+      Signature::of::<fn() -> f64>().return_type(),
+      Primitive(Double)
+    );
   }
 }

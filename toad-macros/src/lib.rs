@@ -51,8 +51,9 @@ pub fn rfc_7252_doc(input: TokenStream) -> TokenStream {
   let sec = section_literal.value();
   let docstring = gen_docstring(sec, RFC7252);
 
-  LitStr::new(&docstring, section_literal.span()).to_token_stream()
-                                                 .into()
+  LitStr::new(&docstring, section_literal.span())
+    .to_token_stream()
+    .into()
 }
 
 fn gen_docstring(sec: String, rfc: &'static str) -> String {
@@ -68,19 +69,20 @@ fn gen_docstring(sec: String, rfc: &'static str) -> String {
                               .as_str();
 
   let mut lines = trim_leading_ws(rfc_section);
-  let line1 = lines.drain(0..1)
-                   .next()
-                   .unwrap_or_else(|| panic!("Section {} is empty", sec));
+  let line1 = lines
+    .drain(0..1)
+    .next()
+    .unwrap_or_else(|| panic!("Section {} is empty", sec));
   let rest = lines.join("\n");
 
   format!(
-          r"# {title}
+    r"# {title}
 [_generated from RFC7252 section {section}_](https://datatracker.ietf.org/doc/html/rfc7252#section-{section})
 
 {body}",
-          title = line1,
-          section = sec,
-          body = rest
+    title = line1,
+    section = sec,
+    body = rest
   )
 }
 
@@ -100,34 +102,37 @@ fn trim_leading_ws(text: &str) -> Vec<String> {
   let trim_start = Regex::new(r"^ +").unwrap();
   let trim_indent = Regex::new(r"^   ").unwrap();
 
-  text.split('\n')
-      .fold((Vec::<String>::new(), TrimStart::Yes),
-            |(mut lines, strip), s| {
-              let trimmed = trim_start.replace(s, "").to_string();
-              let dedented = trim_indent.replace(s, "").to_string();
+  text
+    .split('\n')
+    .fold(
+      (Vec::<String>::new(), TrimStart::Yes),
+      |(mut lines, strip), s| {
+        let trimmed = trim_start.replace(s, "").to_string();
+        let dedented = trim_indent.replace(s, "").to_string();
 
-              let is_fence = trimmed.starts_with("```");
+        let is_fence = trimmed.starts_with("```");
 
-              match (is_fence, strip) {
-                | (false, TrimStart::Yes) => {
-                  lines.push(trimmed);
-                  (lines, strip)
-                },
-                | (false, TrimStart::InCodeFence) => {
-                  lines.push(dedented);
-                  (lines, strip)
-                },
-                | (true, TrimStart::Yes) => {
-                  lines.push(trimmed);
-                  (lines, TrimStart::InCodeFence)
-                },
-                | (true, TrimStart::InCodeFence) => {
-                  lines.push(trimmed);
-                  (lines, TrimStart::Yes)
-                },
-              }
-            })
-      .0
+        match (is_fence, strip) {
+          | (false, TrimStart::Yes) => {
+            lines.push(trimmed);
+            (lines, strip)
+          },
+          | (false, TrimStart::InCodeFence) => {
+            lines.push(dedented);
+            (lines, strip)
+          },
+          | (true, TrimStart::Yes) => {
+            lines.push(trimmed);
+            (lines, TrimStart::InCodeFence)
+          },
+          | (true, TrimStart::InCodeFence) => {
+            lines.push(trimmed);
+            (lines, TrimStart::Yes)
+          },
+        }
+      },
+    )
+    .0
 }
 
 #[cfg(test)]
@@ -164,8 +169,8 @@ Table of Contents
    o poo";
     // preserves whitespace, finds end of section that is not last
     assert_eq!(
-               gen_docstring("1".into(), rfc),
-               r"# Foo
+      gen_docstring("1".into(), rfc),
+      r"# Foo
 [_generated from RFC7252 section 1_](https://datatracker.ietf.org/doc/html/rfc7252#section-1)
 
 bar baz quux
@@ -178,8 +183,8 @@ dingus bar
 
     // finds end of section that is last
     assert_eq!(
-               gen_docstring("2".into(), rfc),
-               r"# Bar
+      gen_docstring("2".into(), rfc),
+      r"# Bar
 [_generated from RFC7252 section 2_](https://datatracker.ietf.org/doc/html/rfc7252#section-2)
 
 bingus

@@ -21,28 +21,33 @@ impl Socket for UdpSocket {
   }
 
   fn send(&self, msg: Addrd<&[u8]>) -> nb::Result<(), Self::Error> {
-    self.set_nonblocking(true)
-        .bind(|_| {
-          UdpSocket::send_to::<std::net::SocketAddr>(self,
-                                                     msg.data(),
-                                                     convert::no_std::SockAddr(msg.addr()).into())
-        })
-        .map(|_| ())
-        .map_err(convert::io_to_nb)
+    self
+      .set_nonblocking(true)
+      .bind(|_| {
+        UdpSocket::send_to::<std::net::SocketAddr>(
+          self,
+          msg.data(),
+          convert::no_std::SockAddr(msg.addr()).into(),
+        )
+      })
+      .map(|_| ())
+      .map_err(convert::io_to_nb)
   }
 
   fn recv(&self, buffer: &mut [u8]) -> nb::Result<Addrd<usize>, Self::Error> {
     self.set_nonblocking(true).unwrap();
-    self.recv_from(buffer)
-        .map(|(n, addr)| Addrd(n, convert::std::SockAddr(addr).into()))
-        .map_err(convert::io_to_nb)
+    self
+      .recv_from(buffer)
+      .map(|(n, addr)| Addrd(n, convert::std::SockAddr(addr).into()))
+      .map_err(convert::io_to_nb)
   }
 
   fn bind_raw<A: no_std_net::ToSocketAddrs>(addr: A) -> Result<Self, Self::Error> {
-    let addrs = addr.to_socket_addrs()
-                    .unwrap()
-                    .map(|no_std| convert::no_std::SockAddr(no_std).into())
-                    .collect::<Vec<std::net::SocketAddr>>();
+    let addrs = addr
+      .to_socket_addrs()
+      .unwrap()
+      .map(|no_std| convert::no_std::SockAddr(no_std).into())
+      .collect::<Vec<std::net::SocketAddr>>();
 
     UdpSocket::bind(addrs.as_slice()).discard(|s: &UdpSocket| Ok(s.set_nonblocking(true).unwrap()))
   }

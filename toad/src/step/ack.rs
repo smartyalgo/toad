@@ -41,16 +41,20 @@ impl<Inner: Step<P, PollReq = InnerPollReq<P>, PollResp = InnerPollResp<P>>, P: 
     &self.0
   }
 
-  fn poll_req(&self,
-              snap: &crate::platform::Snapshot<P>,
-              effects: &mut <P as PlatformTypes>::Effects)
-              -> StepOutput<Self::PollReq, Inner::Error> {
+  fn poll_req(
+    &self,
+    snap: &crate::platform::Snapshot<P>,
+    effects: &mut <P as PlatformTypes>::Effects,
+  ) -> StepOutput<Self::PollReq, Inner::Error> {
     match exec_inner_step!(self.0.poll_req(snap, effects), core::convert::identity) {
       | Some(req)
         if req.data().as_ref().ty == Type::Con
-           && req.data().as_ref().code.kind() == CodeKind::Request =>
+          && req.data().as_ref().code.kind() == CodeKind::Request =>
       {
-        effects.push(Effect::Send(Addrd(Resp::ack(req.as_ref().data()).into(), req.addr())));
+        effects.push(Effect::Send(Addrd(
+          Resp::ack(req.as_ref().data()).into(),
+          req.addr(),
+        )));
         Some(Ok(req))
       },
       | Some(req) => Some(Ok(req)),
@@ -58,14 +62,18 @@ impl<Inner: Step<P, PollReq = InnerPollReq<P>, PollResp = InnerPollResp<P>>, P: 
     }
   }
 
-  fn poll_resp(&self,
-               snap: &crate::platform::Snapshot<P>,
-               effects: &mut <P as PlatformTypes>::Effects,
-               token: toad_msg::Token,
-               addr: no_std_net::SocketAddr)
-               -> StepOutput<Self::PollResp, Inner::Error> {
-    exec_inner_step!(self.0.poll_resp(snap, effects, token, addr),
-                     core::convert::identity).map(Ok)
+  fn poll_resp(
+    &self,
+    snap: &crate::platform::Snapshot<P>,
+    effects: &mut <P as PlatformTypes>::Effects,
+    token: toad_msg::Token,
+    addr: no_std_net::SocketAddr,
+  ) -> StepOutput<Self::PollResp, Inner::Error> {
+    exec_inner_step!(
+      self.0.poll_resp(snap, effects, token, addr),
+      core::convert::identity
+    )
+    .map(Ok)
   }
 }
 
@@ -83,23 +91,32 @@ mod test {
   type InnerPollReq = super::InnerPollReq<crate::test::Platform>;
   type InnerPollResp = super::InnerPollResp<crate::test::Platform>;
 
-  fn test_msg(ty: Type,
-              code: Code)
-              -> (Addrd<Req<crate::test::Platform>>, Addrd<Resp<crate::test::Platform>>) {
+  fn test_msg(
+    ty: Type,
+    code: Code,
+  ) -> (
+    Addrd<Req<crate::test::Platform>>,
+    Addrd<Resp<crate::test::Platform>>,
+  ) {
     use toad_msg::*;
 
     type Msg = platform::Message<crate::test::Platform>;
-    let msg = Msg { id: Id(1),
-                    ty,
-                    ver: Default::default(),
-                    token: Token(Default::default()),
-                    code,
-                    opts: Default::default(),
-                    payload: Payload(Default::default()) };
+    let msg = Msg {
+      id: Id(1),
+      ty,
+      ver: Default::default(),
+      token: Token(Default::default()),
+      code,
+      opts: Default::default(),
+      payload: Payload(Default::default()),
+    };
 
     let addr = crate::test::dummy_addr();
 
-    (Addrd(Req::<_>::from(msg.clone()), addr), Addrd(Resp::<_>::from(msg), addr))
+    (
+      Addrd(Req::<_>::from(msg.clone()), addr),
+      Addrd(Resp::<_>::from(msg), addr),
+    )
   }
 
   test::test_step!(

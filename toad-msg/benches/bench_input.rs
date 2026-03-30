@@ -23,8 +23,8 @@ impl TestInput {
     self.into()
   }
   pub fn get_no_alloc_message<const P: usize, const N: usize, const O: usize>(
-    &self)
-    -> StackMessage<P, N, O> {
+    &self,
+  ) -> StackMessage<P, N, O> {
     self.into()
   }
   pub fn get_coap_lite_packet(&self) -> coap_lite::Packet {
@@ -40,17 +40,22 @@ impl<'a> From<&'a TestInput> for alloc::Message {
                                               })
                                               .collect();
 
-    let token = core::iter::repeat(1u8).take(inp.tkl as _)
-                                       .collect::<tinyvec::ArrayVec<[_; 8]>>();
+    let token = core::iter::repeat(1u8)
+      .take(inp.tkl as _)
+      .collect::<tinyvec::ArrayVec<[_; 8]>>();
 
-    alloc::Message { id: Id(1),
-                     ty: Type::Non,
-                     ver: Default::default(),
-                     token: Token(token),
-                     code: Code { class: 2,
-                                  detail: 5 },
-                     opts,
-                     payload: Payload(core::iter::repeat(1u8).take(inp.payload_size).collect()) }
+    alloc::Message {
+      id: Id(1),
+      ty: Type::Non,
+      ver: Default::default(),
+      token: Token(token),
+      code: Code {
+        class: 2,
+        detail: 5,
+      },
+      opts,
+      payload: Payload(core::iter::repeat(1u8).take(inp.payload_size).collect()),
+    }
   }
 }
 
@@ -58,24 +63,31 @@ impl<'a, const P: usize, const N: usize, const O: usize> From<&'a TestInput>
   for StackMessage<P, N, O>
 {
   fn from(inp: &'a TestInput) -> StackMessage<P, N, O> {
-    let opts: ArrayVec<[_; N]> =
-      (0..inp.n_opts).map(|n| {
-                       (OptNumber(n as u32),
-                        tinyvec::array_vec![_ => OptValue(core::iter::repeat(1).take(inp.opt_size)
-                                                                         .collect())])
-                     })
-                     .collect();
+    let opts: ArrayVec<[_; N]> = (0..inp.n_opts)
+      .map(|n| {
+        (
+          OptNumber(n as u32),
+          tinyvec::array_vec![_ => OptValue(core::iter::repeat(1).take(inp.opt_size)
+                                                                         .collect())],
+        )
+      })
+      .collect();
 
-    let token = core::iter::repeat(1u8).take(inp.tkl as _)
-                                       .collect::<tinyvec::ArrayVec<[_; 8]>>();
+    let token = core::iter::repeat(1u8)
+      .take(inp.tkl as _)
+      .collect::<tinyvec::ArrayVec<[_; 8]>>();
 
-    StackMessage { id: Id(1),
-                   ty: Type::Non,
-                   ver: Default::default(),
-                   token: Token(token),
-                   code: Code { class: 2,
-                                detail: 5 },
-                   opts,
-                   payload: Payload(core::iter::repeat(1u8).take(inp.payload_size).collect()) }
+    StackMessage {
+      id: Id(1),
+      ty: Type::Non,
+      ver: Default::default(),
+      token: Token(token),
+      code: Code {
+        class: 2,
+        detail: 5,
+      },
+      opts,
+      payload: Payload(core::iter::repeat(1u8).take(inp.payload_size).collect()),
+    }
   }
 }

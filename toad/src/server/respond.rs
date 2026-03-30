@@ -6,26 +6,31 @@ use crate::platform::PlatformTypes;
 
 /// Respond to the incoming request, with a custom code and payload.
 pub fn respond<P, E>(code: Code, payload: P::MessagePayload) -> Ap<CompleteWhenHydrated, P, (), E>
-  where P: PlatformTypes,
-        E: core::fmt::Debug
+where
+  P: PlatformTypes,
+  E: core::fmt::Debug,
 {
-  Ap::respond(Respond { code,
-                        payload,
-                        etag: None })
+  Ap::respond(Respond {
+    code,
+    payload,
+    etag: None,
+  })
 }
 
 /// [`respond`] with 2.05 CONTENT
 pub fn ok<P, E>(payload: P::MessagePayload) -> Ap<CompleteWhenHydrated, P, (), E>
-  where P: PlatformTypes,
-        E: core::fmt::Debug
+where
+  P: PlatformTypes,
+  E: core::fmt::Debug,
 {
   respond(crate::resp::code::CONTENT, payload)
 }
 
 /// [`respond`] with 4.04 NOT FOUND
 pub fn not_found<P, E>(payload: P::MessagePayload) -> Ap<CompleteWhenHydrated, P, (), E>
-  where P: PlatformTypes,
-        E: core::fmt::Debug
+where
+  P: PlatformTypes,
+  E: core::fmt::Debug,
 {
   respond(crate::resp::code::NOT_FOUND, payload)
 }
@@ -64,21 +69,23 @@ pub mod json {
 
   #[cfg(any(test, feature = "unstable_serde_json"))]
   fn ok_no_std<P, T>(t: T) -> Result<P::MessagePayload, serde_json_core::ser::Error>
-    where P: PlatformTypes,
-          T: Serialize
+  where
+    P: PlatformTypes,
+    T: Serialize,
   {
     use toad_array::{Filled, Trunc};
     let mut p = P::MessagePayload::filled(0u8).expect("cannot combine dynamically allocated collections with no_std crate feature `unstable_serde_json`. Use `std_serde_json` instead.");
     serde_json_core::to_slice(&t, &mut p).map(|ct| {
-                                           p.trunc(ct);
-                                           p
-                                         })
+      p.trunc(ct);
+      p
+    })
   }
 
   #[cfg(feature = "std_serde_json")]
   fn ok_std<P, T>(t: T) -> Result<P::MessagePayload, Error>
-    where P: PlatformTypes,
-          T: Serialize
+  where
+    P: PlatformTypes,
+    T: Serialize,
   {
     serde_json::to_vec(&t).map(|v| v.into_iter().collect::<P::MessagePayload>())
   }
@@ -140,9 +147,10 @@ pub mod json {
   /// }
   /// ```
   pub fn ok<P, T, E>(t: T) -> Ap<CompleteWhenHydrated, P, (), E>
-    where E: SerializeError,
-          P: PlatformTypes,
-          T: Serialize
+  where
+    E: SerializeError,
+    P: PlatformTypes,
+    T: Serialize,
   {
     #[cfg(feature = "unstable_serde_json")]
     let ok = ok_no_std::<P, T>(t);
@@ -196,9 +204,10 @@ pub mod json {
     #[test]
     fn ok_no_std_happy() {
       let pizza = Pizza(vec![Topping::Pepperoni]);
-      let pizza_bytes = serde_json::to_vec(&pizza).unwrap()
-                                                  .into_iter()
-                                                  .collect::<ArrayVec<[u8; 512]>>();
+      let pizza_bytes = serde_json::to_vec(&pizza)
+        .unwrap()
+        .into_iter()
+        .collect::<ArrayVec<[u8; 512]>>();
 
       assert_eq!(super::ok_no_std::<P, Pizza>(pizza), Ok(pizza_bytes));
     }

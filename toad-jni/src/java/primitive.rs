@@ -5,7 +5,8 @@ use crate::java;
 /// Primitive java values that can be cheaply converted to / from [`JValue`]
 /// and can be wrapped by an Object class.
 pub trait Primitive
-  where Self: java::Type + Sized + Copy
+where
+  Self: java::Type + Sized + Copy,
 {
   /// The Object type that this type may be wrapped with
   type PrimitiveWrapper: java::Class;

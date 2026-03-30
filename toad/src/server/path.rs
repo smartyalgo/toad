@@ -32,29 +32,36 @@ pub mod segment {
   ///   .pipe(path::segment::next(|_, c| Ap::ok(assert_eq!(c.unwrap(), "c"))));
   /// ```
   pub fn next<T, SOut, R, F, P, E>(
-    f: F)
-    -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<<Hydrated as Combine<SOut>>::Out, P, R, E>
-    where P: PlatformTypes,
-          F: for<'a> FnOnce(T, Option<&'a str>) -> Ap<SOut, P, R, E>,
-          E: core::fmt::Debug,
-          SOut: ApState,
-          Hydrated: Combine<SOut>
+    f: F,
+  ) -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<<Hydrated as Combine<SOut>>::Out, P, R, E>
+  where
+    P: PlatformTypes,
+    F: for<'a> FnOnce(T, Option<&'a str>) -> Ap<SOut, P, R, E>,
+    E: core::fmt::Debug,
+    SOut: ApState,
+    Hydrated: Combine<SOut>,
   {
     |ap| match ap.try_unwrap_ok_hydrated() {
       | Ok((t, Hydrate { path, path_ix, req })) => {
         if path_ix >= path.len() {
           Ap::ok_hydrated(t, Hydrate { req, path_ix, path }).bind(|t| f(t, None))
         } else {
-          let seg_str = path.get(path_ix)
-                            .map(|seg| core::str::from_utf8(&seg.0).unwrap())
-                            .unwrap_or("");
+          let seg_str = path
+            .get(path_ix)
+            .map(|seg| core::str::from_utf8(&seg.0).unwrap())
+            .unwrap_or("");
 
           let ap_r = f(t, Some(seg_str));
 
-          Ap::ok_hydrated((),
-                          Hydrate { req,
-                                    path_ix: path_ix + 1,
-                                    path }).bind(|_| ap_r)
+          Ap::ok_hydrated(
+            (),
+            Hydrate {
+              req,
+              path_ix: path_ix + 1,
+              path,
+            },
+          )
+          .bind(|_| ap_r)
         }
       },
       | Err(other) => other.bind(|_| unreachable!()).coerce_state(),
@@ -97,9 +104,10 @@ pub mod segment {
     ///                      .is_rejected());
     /// ```
     pub fn next_is<F, P, T, E>(f: F) -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-      where P: PlatformTypes,
-            E: core::fmt::Debug,
-            F: for<'a> FnOnce(&'a str) -> bool
+    where
+      P: PlatformTypes,
+      E: core::fmt::Debug,
+      F: for<'a> FnOnce(&'a str) -> bool,
     {
       next(move |t, a| match a {
         | Some(a) if f(a) => Ap::ok(t),
@@ -108,11 +116,13 @@ pub mod segment {
     }
 
     /// Reject the request if the next path segment does not equal `path`
-    pub fn next_equals<A, P, T, E>(path: A)
-                                   -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-      where P: PlatformTypes,
-            E: core::fmt::Debug,
-            A: AsRef<str> + 'static
+    pub fn next_equals<A, P, T, E>(
+      path: A,
+    ) -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
+    where
+      P: PlatformTypes,
+      E: core::fmt::Debug,
+      A: AsRef<str> + 'static,
     {
       next_is(move |s| s == path.as_ref())
     }
@@ -155,18 +165,19 @@ pub mod segment {
     /// assert!(other_ap.pipe(path::segment::param::u32).is_rejected());
     /// ```
     pub fn u32<P, T, E>(ap: Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, (T, u32), E>
-      where P: PlatformTypes,
-            E: core::fmt::Debug
+    where
+      P: PlatformTypes,
+      E: core::fmt::Debug,
     {
       let parse = |s: &str| u32::from_str_radix(s, 10);
 
       next(|t, s| {
         s.map(Ap::ok)
-         .unwrap_or_else(|| Ap::reject().pretend_unhydrated())
-         .map(parse)
-         .bind(Ap::from_result)
-         .reject_on_err()
-         .map(|u| (t, u))
+          .unwrap_or_else(|| Ap::reject().pretend_unhydrated())
+          .map(parse)
+          .bind(Ap::from_result)
+          .reject_on_err()
+          .map(|u| (t, u))
       })(ap)
     }
   }
@@ -175,33 +186,39 @@ pub mod segment {
 /// Get the rest of the request path, skipping any
 /// consumed [`segment`]s.
 pub fn rest<T, SOut, R, F, P, E>(
-  f: F)
-  -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<<Hydrated as Combine<SOut>>::Out, P, R, E>
-  where P: PlatformTypes,
-        F: for<'a> FnOnce(T, &'a str) -> Ap<SOut, P, R, E>,
-        E: core::fmt::Debug,
-        SOut: ApState,
-        Hydrated: Combine<SOut>
+  f: F,
+) -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<<Hydrated as Combine<SOut>>::Out, P, R, E>
+where
+  P: PlatformTypes,
+  F: for<'a> FnOnce(T, &'a str) -> Ap<SOut, P, R, E>,
+  E: core::fmt::Debug,
+  SOut: ApState,
+  Hydrated: Combine<SOut>,
 {
   |ap| match ap.try_unwrap_ok_hydrated() {
     | Ok((t, Hydrate { path, req, path_ix })) => {
       let mut s = match path.get(path_ix..) {
         | Some(segs) => segs.iter().fold(String::<1000>::default(), |mut s, seg| {
-                                     if let Ok(seg) = core::str::from_utf8(seg.as_bytes()) {
-                                       write!(&mut s, "{seg}/").ok();
-                                     }
-                                     s
-                                   }),
+          if let Ok(seg) = core::str::from_utf8(seg.as_bytes()) {
+            write!(&mut s, "{seg}/").ok();
+          }
+          s
+        }),
         | None => String::<1000>::default(),
       };
 
       s.as_writable().pop();
 
       let ap_r = f(t, s.as_str());
-      Ap::ok_hydrated((),
-                      Hydrate { req,
-                                path_ix: path.len(),
-                                path }).bind(|_| ap_r)
+      Ap::ok_hydrated(
+        (),
+        Hydrate {
+          req,
+          path_ix: path.len(),
+          path,
+        },
+      )
+      .bind(|_| ap_r)
     },
     | Err(other) => other.bind(|_| unreachable!()).coerce_state(),
   }
@@ -213,9 +230,10 @@ pub mod check {
 
   /// Reject the request if the rest of the path does not match a predicate `F: FnOnce(&str) -> bool`
   pub fn rest_is<F, P, T, E>(f: F) -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-    where P: PlatformTypes,
-          E: core::fmt::Debug,
-          F: for<'a> FnOnce(&'a str) -> bool
+  where
+    P: PlatformTypes,
+    E: core::fmt::Debug,
+    F: for<'a> FnOnce(&'a str) -> bool,
   {
     rest(move |t, a| match a {
       | a if f(a) => Ap::ok(t),
@@ -224,21 +242,25 @@ pub mod check {
   }
 
   /// Reject the request if the rest of the path does not equal `path`
-  pub fn rest_equals<A, P, T, E>(path: A)
-                                 -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-    where P: PlatformTypes,
-          E: core::fmt::Debug,
-          A: AsRef<str> + 'static
+  pub fn rest_equals<A, P, T, E>(
+    path: A,
+  ) -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
+  where
+    P: PlatformTypes,
+    E: core::fmt::Debug,
+    A: AsRef<str> + 'static,
   {
     rest_is(move |a| a == path.as_ref())
   }
 
   /// Reject the request if the rest of the path does not end with `path`
-  pub fn ends_with<A, T, P, E>(path: A)
-                               -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-    where P: PlatformTypes,
-          A: AsRef<str> + 'static,
-          E: core::fmt::Debug
+  pub fn ends_with<A, T, P, E>(
+    path: A,
+  ) -> impl FnOnce(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
+  where
+    P: PlatformTypes,
+    A: AsRef<str> + 'static,
+    E: core::fmt::Debug,
   {
     rest_is(move |a| a.ends_with(path.as_ref()))
   }
@@ -267,9 +289,12 @@ mod tests {
 
     assert_eq!(ap_path.clone().try_unwrap_ok(), Ok("foo/bar".to_string()));
 
-    assert_eq!(ap_path.pipe(path::rest(|_, s| Ap::ok(s.to_string())))
-                      .try_unwrap_ok(),
-               Ok("".to_string()));
+    assert_eq!(
+      ap_path
+        .pipe(path::rest(|_, s| Ap::ok(s.to_string())))
+        .try_unwrap_ok(),
+      Ok("".to_string())
+    );
   }
 
   #[test]
@@ -284,8 +309,9 @@ mod tests {
     let fail = Hydrate::from_request(req("foot/bart"));
 
     let check = |hy| {
-      Ap::<_, (), ()>::ok_hydrated((), hy).pipe(path::check::rest_is(|p| p == "foo/bar"))
-                                          .try_unwrap_ok()
+      Ap::<_, (), ()>::ok_hydrated((), hy)
+        .pipe(path::check::rest_is(|p| p == "foo/bar"))
+        .try_unwrap_ok()
     };
 
     assert!(matches!(check(pass), Ok(_)));
@@ -304,8 +330,9 @@ mod tests {
     let fail = Hydrate::from_request(req("foot/bart"));
 
     let check = |hy| {
-      Ap::<_, (), ()>::ok_hydrated((), hy).pipe(path::check::rest_equals("foo/bar"))
-                                          .try_unwrap_ok()
+      Ap::<_, (), ()>::ok_hydrated((), hy)
+        .pipe(path::check::rest_equals("foo/bar"))
+        .try_unwrap_ok()
     };
 
     assert!(matches!(check(pass), Ok(_)));
@@ -324,8 +351,9 @@ mod tests {
     let fail = Hydrate::from_request(req("foot/bart"));
 
     let check = |hy| {
-      Ap::<_, (), ()>::ok_hydrated((), hy).pipe(path::check::ends_with("bar"))
-                                          .try_unwrap_ok()
+      Ap::<_, (), ()>::ok_hydrated((), hy)
+        .pipe(path::check::ends_with("bar"))
+        .try_unwrap_ok()
     };
 
     assert!(matches!(check(pass), Ok(_)));
@@ -342,15 +370,16 @@ mod tests {
 
     let hy = Hydrate::from_request(req("foot/bart"));
 
-    let ap = Ap::<_, (), ()>::ok_hydrated((), hy).pipe(path::segment::next(|_, s| {
-                                                         Ap::ok(s.unwrap().to_string())
-                                                       }));
+    let ap = Ap::<_, (), ()>::ok_hydrated((), hy)
+      .pipe(path::segment::next(|_, s| Ap::ok(s.unwrap().to_string())));
 
     assert_eq!(ap.clone().try_unwrap_ok(), Ok("foot".to_string()));
 
-    assert_eq!(ap.pipe(path::segment::next(|_, s| Ap::ok(s.unwrap().to_string())))
-                 .try_unwrap_ok(),
-               Ok("bart".to_string()));
+    assert_eq!(
+      ap.pipe(path::segment::next(|_, s| Ap::ok(s.unwrap().to_string())))
+        .try_unwrap_ok(),
+      Ok("bart".to_string())
+    );
   }
 
   #[test]
@@ -363,9 +392,10 @@ mod tests {
 
     let hy = Hydrate::from_request(req("users/123"));
 
-    let ap = Ap::<_, (), ()>::ok_hydrated((), hy).pipe(path::segment::check::next_equals("users"))
-                                                 .pipe(path::segment::param::u32)
-                                                 .map(|(_, u)| u);
+    let ap = Ap::<_, (), ()>::ok_hydrated((), hy)
+      .pipe(path::segment::check::next_equals("users"))
+      .pipe(path::segment::param::u32)
+      .map(|(_, u)| u);
 
     assert_eq!(ap.clone().try_unwrap_ok(), Ok(123));
   }

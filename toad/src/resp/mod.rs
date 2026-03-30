@@ -40,37 +40,49 @@ pub mod code;
 /// # f(toad::req::Req::get( ""));
 /// }
 /// ```
-pub struct Resp<P>(platform::Message<P>) where P: PlatformTypes;
+pub struct Resp<P>(platform::Message<P>)
+where
+  P: PlatformTypes;
 
-impl<P> AsRef<platform::Message<P>> for Resp<P> where P: PlatformTypes
+impl<P> AsRef<platform::Message<P>> for Resp<P>
+where
+  P: PlatformTypes,
 {
   fn as_ref(&self) -> &platform::Message<P> {
     &self.0
   }
 }
 
-impl<P> AsMut<platform::Message<P>> for Resp<P> where P: PlatformTypes
+impl<P> AsMut<platform::Message<P>> for Resp<P>
+where
+  P: PlatformTypes,
 {
   fn as_mut(&mut self) -> &mut platform::Message<P> {
     &mut self.0
   }
 }
 
-impl<P> core::fmt::Debug for Resp<P> where P: PlatformTypes
+impl<P> core::fmt::Debug for Resp<P>
+where
+  P: PlatformTypes,
 {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.debug_tuple("Resp").field(&self.0).finish()
   }
 }
 
-impl<P> Clone for Resp<P> where P: PlatformTypes
+impl<P> Clone for Resp<P>
+where
+  P: PlatformTypes,
 {
   fn clone(&self) -> Self {
     Self(self.0.clone())
   }
 }
 
-impl<P> PartialEq for Resp<P> where P: PlatformTypes
+impl<P> PartialEq for Resp<P>
+where
+  P: PlatformTypes,
 {
   fn eq(&self, other: &Self) -> bool {
     self.0 == other.0
@@ -137,13 +149,15 @@ impl<P: PlatformTypes> Resp<P> {
   /// If you do need to ensure they receive your response,
   /// you
   pub fn ack(req: &Req<P>) -> Self {
-    let msg = Message { ty: Type::Ack,
-                        id: req.msg().id,
-                        opts: P::MessageOptions::default(),
-                        code: code::CONTENT,
-                        ver: Default::default(),
-                        payload: Payload(Default::default()),
-                        token: req.msg().token };
+    let msg = Message {
+      ty: Type::Ack,
+      id: req.msg().id,
+      opts: P::MessageOptions::default(),
+      code: code::CONTENT,
+      ver: Default::default(),
+      payload: Payload(Default::default()),
+      token: req.msg().token,
+    };
 
     Self(msg)
   }
@@ -161,13 +175,15 @@ impl<P: PlatformTypes> Resp<P> {
   /// The `toad` runtime will continually retry sending this until
   /// an ACKnowledgement from the client is received.
   pub fn con(req: &Req<P>) -> Self {
-    let msg = Message { ty: Type::Con,
-                        id: Id(Default::default()),
-                        opts: P::MessageOptions::default(),
-                        code: code::CONTENT,
-                        ver: Default::default(),
-                        payload: Payload(Default::default()),
-                        token: req.msg().token };
+    let msg = Message {
+      ty: Type::Con,
+      id: Id(Default::default()),
+      opts: P::MessageOptions::default(),
+      code: code::CONTENT,
+      ver: Default::default(),
+      payload: Payload(Default::default()),
+      token: req.msg().token,
+    };
 
     Self(msg)
   }
@@ -178,13 +194,15 @@ impl<P: PlatformTypes> Resp<P> {
   /// - you receive a NON request and don't need to ensure the client received the response
   /// - you receive a CON request and don't need to ensure the client received the response (**you _must_ ACK this type of request separately**)
   pub fn non(req: &Req<P>) -> Self {
-    let msg = Message { ty: Type::Non,
-                        id: Id(Default::default()),
-                        opts: P::MessageOptions::default(),
-                        code: code::CONTENT,
-                        ver: Default::default(),
-                        payload: Payload(Default::default()),
-                        token: req.msg().token };
+    let msg = Message {
+      ty: Type::Non,
+      id: Id(Default::default()),
+      opts: P::MessageOptions::default(),
+      code: code::CONTENT,
+      ver: Default::default(),
+      payload: Payload(Default::default()),
+      token: req.msg().token,
+    };
 
     Self(msg)
   }

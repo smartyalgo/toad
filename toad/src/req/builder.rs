@@ -10,9 +10,10 @@ use crate::ToCoapValue;
 /// Errors encounterable while using ReqBuilder
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error<P>
-  where P: PlatformTypes,
-        platform::toad_msg::opt::OptValue<P>: Clone + Eq + core::fmt::Debug,
-        platform::toad_msg::opt::SetError<P>: Clone + core::fmt::Debug + Eq
+where
+  P: PlatformTypes,
+  platform::toad_msg::opt::OptValue<P>: Clone + Eq + core::fmt::Debug,
+  platform::toad_msg::opt::SetError<P>: Clone + core::fmt::Debug + Eq,
 {
   /// Ran out of storage space for options
   SetOptionError(platform::toad_msg::opt::SetError<P>),
@@ -56,20 +57,24 @@ pub enum Error<P>
 /// ```
 #[derive(Clone, Debug)]
 pub struct ReqBuilder<P>
-  where P: PlatformTypes,
-        platform::toad_msg::opt::OptValue<P>: Clone + Eq + core::fmt::Debug,
-        platform::toad_msg::opt::SetError<P>: Clone + core::fmt::Debug + Eq
+where
+  P: PlatformTypes,
+  platform::toad_msg::opt::OptValue<P>: Clone + Eq + core::fmt::Debug,
+  platform::toad_msg::opt::SetError<P>: Clone + core::fmt::Debug + Eq,
 {
   inner: Result<Req<P>, Error<P>>,
 }
 
 impl<P> ReqBuilder<P>
-  where P: PlatformTypes,
-        platform::toad_msg::opt::OptValue<P>: Clone + Eq + core::fmt::Debug,
-        platform::toad_msg::opt::SetError<P>: Clone + core::fmt::Debug + Eq
+where
+  P: PlatformTypes,
+  platform::toad_msg::opt::OptValue<P>: Clone + Eq + core::fmt::Debug,
+  platform::toad_msg::opt::SetError<P>: Clone + core::fmt::Debug + Eq,
 {
   fn new(method: Method, path: impl AsRef<str>) -> Self {
-    Self { inner: Ok(Req::new(method, path)) }
+    Self {
+      inner: Ok(Req::new(method, path)),
+    }
   }
 
   /// Creates a GET request
@@ -96,21 +101,21 @@ impl<P> ReqBuilder<P>
   ///
   /// If the option has already been set, this will yield `Err(Error::OptionNotRepeatable)`.
   pub fn option<V: ToCoapValue>(mut self, number: OptNumber, value: V) -> Self {
-    self.inner =
-      self.inner.and_then(|mut req| {
-                  let val = OptValue(value.to_coap_value::<platform::toad_msg::opt::Bytes<P>>());
-                  match req.as_mut().remove(number) {
-                    | Some(existing) => {
-                      Err(Error::OptionNotRepeatable { number,
-                                                       old: existing.into_iter().next().unwrap(),
-                                                       new: val })
-                    },
-                    | None => req.msg_mut()
-                                 .set(number, val)
-                                 .map_err(Error::SetOptionError)
-                                 .map(|_| req),
-                  }
-                });
+    self.inner = self.inner.and_then(|mut req| {
+      let val = OptValue(value.to_coap_value::<platform::toad_msg::opt::Bytes<P>>());
+      match req.as_mut().remove(number) {
+        | Some(existing) => Err(Error::OptionNotRepeatable {
+          number,
+          old: existing.into_iter().next().unwrap(),
+          new: val,
+        }),
+        | None => req
+          .msg_mut()
+          .set(number, val)
+          .map_err(Error::SetOptionError)
+          .map(|_| req),
+      }
+    });
 
     self
   }
@@ -118,23 +123,24 @@ impl<P> ReqBuilder<P>
   ///
   pub fn add_option<V: ToCoapValue>(mut self, number: OptNumber, value: V) -> Self {
     self.inner = self.inner.and_then(|mut req| {
-                             let val =
-                               OptValue(value.to_coap_value::<platform::toad_msg::opt::Bytes<P>>());
-                             req.msg_mut()
-                                .set(number, val)
-                                .map_err(Error::SetOptionError)
-                                .map(|_| req)
-                           });
+      let val = OptValue(value.to_coap_value::<platform::toad_msg::opt::Bytes<P>>());
+      req
+        .msg_mut()
+        .set(number, val)
+        .map_err(Error::SetOptionError)
+        .map(|_| req)
+    });
 
     self
   }
 
   /// Set the payload of the request
   pub fn payload<V: ToCoapValue>(mut self, value: V) -> Self {
-    self.inner
-        .as_mut()
-        .discard_mut(|i: &mut &mut Req<P>| Ok(i.set_payload(value)))
-        .ok();
+    self
+      .inner
+      .as_mut()
+      .discard_mut(|i: &mut &mut Req<P>| Ok(i.set_payload(value)))
+      .ok();
     self
   }
 
