@@ -150,6 +150,7 @@ pub(crate) fn test_msg() -> (alloc::Message, Vec<u8>) {
 
 #[cfg(test)]
 pub(crate) mod tests {
+  /// Assert two byte values are equal, printing binary representations on failure.
   #[macro_export]
   macro_rules! assert_eqb {
     ($actual:expr, $expected:expr) => {
@@ -159,6 +160,7 @@ pub(crate) mod tests {
     };
   }
 
+  /// Assert two byte iterables are equal, printing binary representations on failure.
   #[macro_export]
   macro_rules! assert_eqb_iter {
     ($actual:expr, $expected:expr) => {
