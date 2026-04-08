@@ -5,9 +5,8 @@ use crate::platform::PlatformTypes;
 use crate::req::Req;
 
 pub(crate) enum ApInner<S, P, T, Error>
-where
-  S: ApState,
-  P: PlatformTypes,
+  where S: ApState,
+        P: PlatformTypes
 {
   #[allow(dead_code)]
   Phantom(S),
@@ -29,40 +28,36 @@ where
 }
 
 impl<S, P, T, E> core::fmt::Debug for ApInner<S, P, T, E>
-where
-  S: ApState,
-  P: PlatformTypes,
-  E: core::fmt::Debug,
-  T: core::fmt::Debug,
+  where S: ApState,
+        P: PlatformTypes,
+        E: core::fmt::Debug,
+        T: core::fmt::Debug
 {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       | ApInner::Phantom(_) => unreachable!(),
       | ApInner::Ok(t) => f.debug_tuple("ApInner::Ok").field(&t).finish(),
-      | ApInner::OkHydrated(t, hy) => f
-        .debug_tuple("ApInner::OkHydrated")
-        .field(&t)
-        .field(&hy)
-        .finish(),
+      | ApInner::OkHydrated(t, hy) => f.debug_tuple("ApInner::OkHydrated")
+                                       .field(&t)
+                                       .field(&hy)
+                                       .finish(),
       | ApInner::Reject => f.debug_struct("ApInner::Reject").finish(),
       | ApInner::Respond(r) => f.debug_tuple("ApInner::Respond").field(&r).finish(),
       | ApInner::Err(e) => f.debug_tuple("ApInner::Err").field(&e).finish(),
       | ApInner::RejectHydrated(r) => f.debug_tuple("ApInner::RejectHydrated").field(&r).finish(),
-      | ApInner::RespondHydrated(req, rep) => f
-        .debug_tuple("ApInner::RespondHydrated")
-        .field(&req)
-        .field(&rep)
-        .finish(),
+      | ApInner::RespondHydrated(req, rep) => f.debug_tuple("ApInner::RespondHydrated")
+                                               .field(&req)
+                                               .field(&rep)
+                                               .finish(),
     }
   }
 }
 
 impl<S, P, T, E> PartialEq for ApInner<S, P, T, E>
-where
-  S: ApState,
-  P: PlatformTypes,
-  E: PartialEq,
-  T: PartialEq,
+  where S: ApState,
+        P: PlatformTypes,
+        E: PartialEq,
+        T: PartialEq
 {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
@@ -81,11 +76,10 @@ where
 }
 
 impl<S, P, T, E> Clone for ApInner<S, P, T, E>
-where
-  S: ApState,
-  P: PlatformTypes,
-  E: Clone,
-  T: Clone,
+  where S: ApState,
+        P: PlatformTypes,
+        E: Clone,
+        T: Clone
 {
   fn clone(&self) -> Self {
     match self {

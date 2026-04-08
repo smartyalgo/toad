@@ -103,8 +103,7 @@ pub trait Reserve: Default {
 ///
 /// If self was longer, drops elements up to `len`
 pub trait Trunc
-where
-  Self: Sized,
+  where Self: Sized
 {
   #[allow(missing_docs)]
   fn trunc(&mut self, len: usize) -> ();
@@ -122,9 +121,7 @@ impl<T> Trunc for Vec<T> {
   }
 }
 
-impl<T, const N: usize> Trunc for tinyvec::ArrayVec<[T; N]>
-where
-  T: Default,
+impl<T, const N: usize> Trunc for tinyvec::ArrayVec<[T; N]> where T: Default
 {
   fn trunc(&mut self, len: usize) -> () {
     self.truncate(len)
@@ -139,24 +136,21 @@ where
 pub trait Filled<T>: Sized {
   #[allow(missing_docs)]
   fn filled(t: T) -> Option<Self>
-  where
-    T: Copy,
+    where T: Copy
   {
     Self::filled_using(|| t)
   }
 
   #[allow(missing_docs)]
   fn filled_default() -> Option<Self>
-  where
-    T: Default,
+    where T: Default
   {
     Self::filled_using(|| Default::default())
   }
 
   #[allow(missing_docs)]
   fn filled_using<F>(f: F) -> Option<Self>
-  where
-    F: Fn() -> T;
+    where F: Fn() -> T;
 }
 
 #[cfg(feature = "alloc")]
@@ -169,8 +163,7 @@ impl<T> Reserve for Vec<T> {
 #[cfg(feature = "alloc")]
 impl<T> Filled<T> for Vec<T> {
   fn filled_using<F>(_: F) -> Option<Self>
-  where
-    F: Fn() -> T,
+    where F: Fn() -> T
   {
     None
   }
@@ -178,20 +171,16 @@ impl<T> Filled<T> for Vec<T> {
 
 impl<A: tinyvec::Array> Reserve for tinyvec::ArrayVec<A> {}
 
-impl<T, const N: usize> Filled<T> for tinyvec::ArrayVec<[T; N]>
-where
-  T: Default,
+impl<T, const N: usize> Filled<T> for tinyvec::ArrayVec<[T; N]> where T: Default
 {
   fn filled_using<F>(f: F) -> Option<Self>
-  where
-    F: Fn() -> T,
+    where F: Fn() -> T
   {
     Some(core::iter::repeat(()).take(N).map(|_| f()).collect())
   }
 
   fn filled(t: T) -> Option<Self>
-  where
-    T: Copy,
+    where T: Copy
   {
     Some(Self::from([t; N]))
   }
@@ -293,9 +282,7 @@ impl<T> Array for Vec<T> {
   }
 }
 
-impl<A: tinyvec::Array<Item = T>, T> Array for tinyvec::ArrayVec<A>
-where
-  Self: Filled<T> + Trunc,
+impl<A: tinyvec::Array<Item = T>, T> Array for tinyvec::ArrayVec<A> where Self: Filled<T> + Trunc
 {
   type Item = T;
 

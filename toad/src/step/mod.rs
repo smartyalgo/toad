@@ -34,23 +34,21 @@ pub mod runtime {
   #[allow(missing_docs)]
   pub type Retry<P, A, S> = retry::Retry<S, Array<A, (retry::State<Clock<P>>, Addrd<Message<P>>)>>;
   #[allow(missing_docs)]
-  pub type BufferResponses<P, M, S> = buffer_responses::BufferResponses<
-    S,
-    Map<M, (SocketAddr, Token, toad_msg::Type), Addrd<Resp<P>>>,
-  >;
+  pub type BufferResponses<P, M, S> =
+    buffer_responses::BufferResponses<S,
+                                      Map<M, (SocketAddr, Token, toad_msg::Type), Addrd<Resp<P>>>>;
   #[allow(missing_docs)]
-  pub type ProvisionIds<P, M, A, S> = provision_ids::ProvisionIds<
-    P,
-    S,
-    Map<M, SocketAddrWithDefault, Array<A, Stamped<Clock<P>, IdWithDefault>>>,
-  >;
+  pub type ProvisionIds<P, M, A, S> =
+    provision_ids::ProvisionIds<P,
+                                S,
+                                Map<M,
+                                    SocketAddrWithDefault,
+                                    Array<A, Stamped<Clock<P>, IdWithDefault>>>>;
   #[allow(missing_docs)]
-  pub type Observe<P, A, S> = observe::Observe<
-    S,
-    Array<A, observe::Sub<P>>,
-    Array<A, Addrd<Req<P>>>,
-    observe::SubHash_TypePathQueryAccept<P>,
-  >;
+  pub type Observe<P, A, S> = observe::Observe<S,
+                                               Array<A, observe::Sub<P>>,
+                                               Array<A, Addrd<Req<P>>>,
+                                               observe::SubHash_TypePathQueryAccept<P>>;
 
   /// Parse -> ProvisionIds -> ProvisionTokens -> Ack -> Retry -> HandleAcks -> BufferResponses -> Observe
   #[rustfmt::skip]
@@ -311,7 +309,9 @@ macro_rules! _try {
   }};
 }
 
-pub use {_try, exec_inner_step, log};
+pub use _try;
+pub use exec_inner_step;
+pub use log;
 
 /// An error that can be returned by a [`Step`].
 pub trait Error: core::fmt::Debug {}
@@ -342,21 +342,19 @@ pub trait Step<P: PlatformTypes>: Default {
 
   /// # Poll for an inbound request
   /// This corresponds to the **server** flow.
-  fn poll_req(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effects: &mut P::Effects,
-  ) -> StepOutput<Self::PollReq, Self::Error>;
+  fn poll_req(&self,
+              snap: &platform::Snapshot<P>,
+              effects: &mut P::Effects)
+              -> StepOutput<Self::PollReq, Self::Error>;
 
   /// # Poll for an inbound response
   /// This corresponds to the **client** flow.
-  fn poll_resp(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effects: &mut P::Effects,
-    token: Token,
-    addr: SocketAddr,
-  ) -> StepOutput<Self::PollResp, Self::Error>;
+  fn poll_resp(&self,
+               snap: &platform::Snapshot<P>,
+               effects: &mut P::Effects,
+               token: Token,
+               addr: SocketAddr)
+               -> StepOutput<Self::PollResp, Self::Error>;
 
   /// # Update Observers
   ///
@@ -365,13 +363,11 @@ pub trait Step<P: PlatformTypes>: Default {
   ///
   /// See [`observe`] for more info.
   fn notify<Path>(&self, path: Path, effects: &mut P::Effects) -> Result<(), Self::Error>
-  where
-    Path: AsRef<str> + Clone,
+    where Path: AsRef<str> + Clone
   {
-    self
-      .inner()
-      .notify(path, effects)
-      .map_err(Self::Error::from)
+    self.inner()
+        .notify(path, effects)
+        .map_err(Self::Error::from)
   }
 
   /// Invoked before messages are sent, allowing for internal state change & modification.
@@ -381,16 +377,14 @@ pub trait Step<P: PlatformTypes>: Default {
   ///
   /// # Default Implementation
   /// The default implementation will invoke `self.inner().before_message_sent`
-  fn before_message_sent(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-    msg: &mut Addrd<platform::Message<P>>,
-  ) -> Result<(), Self::Error> {
-    self
-      .inner()
-      .before_message_sent(snap, effects, msg)
-      .map_err(Self::Error::from)
+  fn before_message_sent(&self,
+                         snap: &platform::Snapshot<P>,
+                         effects: &mut <P as PlatformTypes>::Effects,
+                         msg: &mut Addrd<platform::Message<P>>)
+                         -> Result<(), Self::Error> {
+    self.inner()
+        .before_message_sent(snap, effects, msg)
+        .map_err(Self::Error::from)
   }
 
   /// Invoked after messages are sent, allowing for internal state change.
@@ -400,16 +394,14 @@ pub trait Step<P: PlatformTypes>: Default {
   ///
   /// # Default Implementation
   /// The default implementation will just invoke `self.inner().on_message_sent`
-  fn on_message_sent(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effects: &mut P::Effects,
-    msg: &Addrd<platform::Message<P>>,
-  ) -> Result<(), Self::Error> {
-    self
-      .inner()
-      .on_message_sent(snap, effects, msg)
-      .map_err(Self::Error::from)
+  fn on_message_sent(&self,
+                     snap: &platform::Snapshot<P>,
+                     effects: &mut P::Effects,
+                     msg: &Addrd<platform::Message<P>>)
+                     -> Result<(), Self::Error> {
+    self.inner()
+        .on_message_sent(snap, effects, msg)
+        .map_err(Self::Error::from)
   }
 }
 
@@ -423,46 +415,41 @@ impl<P: PlatformTypes> Step<P> for () {
     panic!("Step.inner invoked for unit (). This is incorrect and would likely cause recursion without return")
   }
 
-  fn poll_req(
-    &self,
-    _: &platform::Snapshot<P>,
-    _: &mut <P as PlatformTypes>::Effects,
-  ) -> StepOutput<(), ()> {
+  fn poll_req(&self,
+              _: &platform::Snapshot<P>,
+              _: &mut <P as PlatformTypes>::Effects)
+              -> StepOutput<(), ()> {
     None
   }
 
-  fn poll_resp(
-    &self,
-    _: &platform::Snapshot<P>,
-    _: &mut P::Effects,
-    _: Token,
-    _: SocketAddr,
-  ) -> StepOutput<(), ()> {
+  fn poll_resp(&self,
+               _: &platform::Snapshot<P>,
+               _: &mut P::Effects,
+               _: Token,
+               _: SocketAddr)
+               -> StepOutput<(), ()> {
     None
   }
 
   fn notify<Path>(&self, _: Path, _: &mut P::Effects) -> Result<(), Self::Error>
-  where
-    Path: AsRef<str>,
+    where Path: AsRef<str>
   {
     Ok(())
   }
 
-  fn before_message_sent(
-    &self,
-    _: &platform::Snapshot<P>,
-    _: &mut P::Effects,
-    _: &mut Addrd<platform::Message<P>>,
-  ) -> Result<(), Self::Error> {
+  fn before_message_sent(&self,
+                         _: &platform::Snapshot<P>,
+                         _: &mut P::Effects,
+                         _: &mut Addrd<platform::Message<P>>)
+                         -> Result<(), Self::Error> {
     Ok(())
   }
 
-  fn on_message_sent(
-    &self,
-    _: &platform::Snapshot<P>,
-    _: &mut P::Effects,
-    _: &Addrd<platform::Message<P>>,
-  ) -> Result<(), Self::Error> {
+  fn on_message_sent(&self,
+                     _: &platform::Snapshot<P>,
+                     _: &mut P::Effects,
+                     _: &Addrd<platform::Message<P>>)
+                     -> Result<(), Self::Error> {
     Ok(())
   }
 }
@@ -477,14 +464,10 @@ pub mod test {
   use crate::test::ClockMock;
 
   pub fn default_snapshot() -> platform::Snapshot<test::Platform> {
-    platform::Snapshot {
-      time: ClockMock::new().try_now().unwrap(),
-      recvd_dgram: Some(crate::net::Addrd(
-        Default::default(),
-        crate::test::dummy_addr(),
-      )),
-      config: crate::config::Config::default(),
-    }
+    platform::Snapshot { time: ClockMock::new().try_now().unwrap(),
+                         recvd_dgram: Some(crate::net::Addrd(Default::default(),
+                                                             crate::test::dummy_addr())),
+                         config: crate::config::Config::default() }
   }
 
   #[macro_export]
@@ -762,9 +745,8 @@ pub mod test {
 
       let mut msg = $msg;
       let assert_fn: Box<dyn Fn(Addrd<test::Message>)> = Box::new($assert_fn);
-      $step
-        .before_message_sent(&$snap, &mut $effects, &mut msg)
-        .unwrap();
+      $step.before_message_sent(&$snap, &mut $effects, &mut msg)
+           .unwrap();
       assert_fn(msg)
     }};
     (
@@ -803,9 +785,8 @@ pub mod test {
     ) => {{
       use $crate::step::{Step, StepOutput};
 
-      let assert_fn: Box<
-        dyn Fn(StepOutput<<$step_ty as Step<_>>::PollReq, <$step_ty as Step<_>>::Error>),
-      > = Box::new($assert_fn);
+      let assert_fn: Box<dyn Fn(StepOutput<<$step_ty as Step<_>>::PollReq,
+                                           <$step_ty as Step<_>>::Error>)> = Box::new($assert_fn);
       assert_fn($step.poll_req($snap, $effects))
     }};
     (
@@ -818,9 +799,8 @@ pub mod test {
     ) => {{
       use $crate::step::{Step, StepOutput};
 
-      let assert_fn: Box<
-        dyn Fn(StepOutput<<$step_ty as Step<_>>::PollReq, <$step_ty as Step<_>>::Error>),
-      > = Box::new($assert_fn);
+      let assert_fn: Box<dyn Fn(StepOutput<<$step_ty as Step<_>>::PollReq,
+                                           <$step_ty as Step<_>>::Error>)> = Box::new($assert_fn);
       assert_fn($step.poll_req(&$snap, $effects))
     }};
     (
@@ -833,9 +813,8 @@ pub mod test {
     ) => {{
       use $crate::step::{Step, StepOutput};
 
-      let assert_fn: Box<
-        dyn Fn(StepOutput<<$step_ty as Step<_>>::PollResp, <$step_ty as Step<_>>::Error>),
-      > = Box::new($assert_fn);
+      let assert_fn: Box<dyn Fn(StepOutput<<$step_ty as Step<_>>::PollResp,
+                                           <$step_ty as Step<_>>::Error>)> = Box::new($assert_fn);
       assert_fn($step.poll_resp($snap, $effects, $token, $addr))
     }};
     (
@@ -848,9 +827,8 @@ pub mod test {
     ) => {{
       use $crate::step::{Step, StepOutput};
 
-      let assert_fn: Box<
-        dyn Fn(StepOutput<<$step_ty as Step<_>>::PollResp, <$step_ty as Step<_>>::Error>),
-      > = Box::new($assert_fn);
+      let assert_fn: Box<dyn Fn(StepOutput<<$step_ty as Step<_>>::PollResp,
+                                           <$step_ty as Step<_>>::Error>)> = Box::new($assert_fn);
       assert_fn($step.poll_resp(&$snap, $effects, $token, $addr))
     }};
     (
@@ -863,9 +841,8 @@ pub mod test {
     ) => {{
       use $crate::step::{Step, StepOutput};
 
-      let assert_fn: Box<
-        dyn Fn(StepOutput<<$step_ty as Step<_>>::PollResp, <$step_ty as Step<_>>::Error>),
-      > = Box::new($assert_fn);
+      let assert_fn: Box<dyn Fn(StepOutput<<$step_ty as Step<_>>::PollResp,
+                                           <$step_ty as Step<_>>::Error>)> = Box::new($assert_fn);
       assert_fn($step.poll_resp($snap, $effects, $token, $addr))
     }};
     (
@@ -898,9 +875,8 @@ pub mod test {
       expect (before_message_sent(_, _, $msg:expr) should be ok with {$f:expr})
     ) => {{
       let mut msg = $msg;
-      $step
-        .before_message_sent(&$snap, &mut $effects, &mut msg)
-        .unwrap();
+      $step.before_message_sent(&$snap, &mut $effects, &mut msg)
+           .unwrap();
       let f: Box<dyn Fn($crate::net::Addrd<$crate::test::Message>)> = Box::new($f);
       f(msg)
     }};
@@ -964,5 +940,7 @@ pub mod test {
     };
   }
 
-  pub use {dummy_step, test_step, test_step_when};
+  pub use dummy_step;
+  pub use test_step;
+  pub use test_step_when;
 }

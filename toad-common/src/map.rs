@@ -42,23 +42,19 @@ pub trait Map<K: Ord + Eq + Hash, V>:
 
   /// See [`HashMap.remove`]
   fn remove<Q: Hash + Eq + Ord>(&mut self, key: &Q) -> Option<V>
-  where
-    K: Borrow<Q>;
+    where K: Borrow<Q>;
 
   /// See [`HashMap.get`]
   fn get<'a, Q: Hash + Eq + Ord>(&'a self, key: &Q) -> Option<&'a V>
-  where
-    K: Borrow<Q> + 'a;
+    where K: Borrow<Q> + 'a;
 
   /// See [`HashMap.get_mut`]
   fn get_mut<'a, Q: Hash + Eq + Ord>(&'a mut self, key: &Q) -> Option<&'a mut V>
-  where
-    K: Borrow<Q> + 'a;
+    where K: Borrow<Q> + 'a;
 
   /// See [`HashMap.contains_key`]
   fn has<Q: Hash + Eq + Ord>(&self, key: &Q) -> bool
-  where
-    K: Borrow<Q>,
+    where K: Borrow<Q>
   {
     self.get(key).is_some()
   }
@@ -73,96 +69,80 @@ pub trait Map<K: Ord + Eq + Hash, V>:
 #[cfg(feature = "alloc")]
 impl<K: Eq + Hash + Ord, V> Map<K, V> for BTreeMap<K, V> {
   fn insert(&mut self, key: K, val: V) -> Result<(), InsertError<V>> {
-    self
-      .insert(key, val)
-      .map(InsertError::Exists)
-      .ok_or(())
-      .swap()
+    self.insert(key, val)
+        .map(InsertError::Exists)
+        .ok_or(())
+        .swap()
   }
 
   fn remove<Q: Ord>(&mut self, key: &Q) -> Option<V>
-  where
-    K: Borrow<Q>,
+    where K: Borrow<Q>
   {
     self.remove(key)
   }
 
   fn get<'a, Q: Hash + Eq + Ord>(&'a self, key: &Q) -> Option<&'a V>
-  where
-    K: Borrow<Q> + 'a,
+    where K: Borrow<Q> + 'a
   {
     self.get(key)
   }
 
   fn get_mut<'a, Q: Hash + Eq + Ord>(&'a mut self, key: &Q) -> Option<&'a mut V>
-  where
-    K: Borrow<Q> + 'a,
+    where K: Borrow<Q> + 'a
   {
     self.get_mut(key)
   }
 
   fn iter(&self) -> Iter<'_, K, V> {
-    Iter {
-      array_iter: None,
-      #[cfg(feature = "std")]
-      hashmap_iter: None,
-      btreemap_iter: Some(self.iter()),
-    }
+    Iter { array_iter: None,
+           #[cfg(feature = "std")]
+           hashmap_iter: None,
+           btreemap_iter: Some(self.iter()) }
   }
 
   fn iter_mut(&mut self) -> IterMut<'_, K, V> {
-    IterMut {
-      array_iter: None,
-      #[cfg(feature = "std")]
-      hashmap_iter: None,
-      btreemap_iter: Some(self.iter_mut()),
-    }
+    IterMut { array_iter: None,
+              #[cfg(feature = "std")]
+              hashmap_iter: None,
+              btreemap_iter: Some(self.iter_mut()) }
   }
 }
 
 #[cfg(feature = "std")]
 impl<K: Eq + Hash + Ord, V> Map<K, V> for HashMap<K, V> {
   fn iter(&self) -> Iter<'_, K, V> {
-    Iter {
-      array_iter: None,
-      btreemap_iter: None,
-      hashmap_iter: Some(self.iter()),
-    }
+    Iter { array_iter: None,
+           btreemap_iter: None,
+           hashmap_iter: Some(self.iter()) }
   }
 
   fn iter_mut(&mut self) -> IterMut<'_, K, V> {
-    IterMut {
-      array_iter: None,
-      btreemap_iter: None,
-      hashmap_iter: Some(self.iter_mut()),
-    }
+    IterMut { array_iter: None,
+              btreemap_iter: None,
+              hashmap_iter: Some(self.iter_mut()) }
   }
 
   fn get<'a, Q: Hash + Eq + Ord>(&'a self, key: &Q) -> Option<&'a V>
-  where
-    K: Borrow<Q> + 'a,
+    where K: Borrow<Q> + 'a
   {
     self.get(key)
   }
 
   fn get_mut<'a, Q: Hash + Eq + Ord>(&'a mut self, key: &Q) -> Option<&'a mut V>
-  where
-    K: Borrow<Q> + 'a,
+    where K: Borrow<Q> + 'a
   {
     self.get_mut(key)
   }
 
   fn insert(&mut self, key: K, val: V) -> Result<(), InsertError<V>> {
-    self
-      .insert(key, val)
-      .map(InsertError::Exists)
-      .ok_or(())
-      .swap()
+    self.insert(key, val)
+        .map(InsertError::Exists)
+        .ok_or(())
+        .swap()
   }
 
   fn remove<Q: Hash + Eq + Ord>(&mut self, key: &Q) -> Option<V>
-  where
-    K: Borrow<Q>,
+    where K: Borrow<Q>
   {
     self.remove(key)
   }
@@ -186,13 +166,11 @@ impl<T: crate::Array<Item = (K, V)>, K: Eq + Hash + Ord, V> Map<K, V> for T {
   }
 
   fn remove<Q: Hash + Eq + Ord>(&mut self, key: &Q) -> Option<V>
-  where
-    K: Borrow<Q>,
+    where K: Borrow<Q>
   {
-    match self
-      .iter()
-      .enumerate()
-      .find(|(_, (k, _))| Borrow::<Q>::borrow(*k) == key)
+    match self.iter()
+              .enumerate()
+              .find(|(_, (k, _))| Borrow::<Q>::borrow(*k) == key)
     {
       | Some((ix, _)) => self.remove(ix).map(|(_, v)| v),
       | None => None,
@@ -200,8 +178,7 @@ impl<T: crate::Array<Item = (K, V)>, K: Eq + Hash + Ord, V> Map<K, V> for T {
   }
 
   fn get<'a, Q: Hash + Eq + Ord>(&'a self, key: &Q) -> Option<&'a V>
-  where
-    K: Borrow<Q> + 'a,
+    where K: Borrow<Q> + 'a
   {
     match self.iter().find(|(k, _)| Borrow::<Q>::borrow(*k) == key) {
       | Some((_, v)) => Some(v),
@@ -210,12 +187,10 @@ impl<T: crate::Array<Item = (K, V)>, K: Eq + Hash + Ord, V> Map<K, V> for T {
   }
 
   fn get_mut<'a, Q: Hash + Eq + Ord>(&'a mut self, key: &Q) -> Option<&'a mut V>
-  where
-    K: Borrow<Q> + 'a,
+    where K: Borrow<Q> + 'a
   {
-    match self
-      .iter_mut()
-      .find(|(k, _)| Borrow::<Q>::borrow(*k) == key)
+    match self.iter_mut()
+              .find(|(k, _)| Borrow::<Q>::borrow(*k) == key)
     {
       | Some((_, v)) => Some(v),
       | None => None,
@@ -223,23 +198,19 @@ impl<T: crate::Array<Item = (K, V)>, K: Eq + Hash + Ord, V> Map<K, V> for T {
   }
 
   fn iter(&self) -> Iter<'_, K, V> {
-    Iter {
-      array_iter: Some(self.deref().iter().map(Iter::coerce_array_iter)),
-      #[cfg(feature = "alloc")]
-      btreemap_iter: None,
-      #[cfg(feature = "std")]
-      hashmap_iter: None,
-    }
+    Iter { array_iter: Some(self.deref().iter().map(Iter::coerce_array_iter)),
+           #[cfg(feature = "alloc")]
+           btreemap_iter: None,
+           #[cfg(feature = "std")]
+           hashmap_iter: None }
   }
 
   fn iter_mut(&mut self) -> IterMut<'_, K, V> {
-    IterMut {
-      array_iter: Some(self.deref_mut().iter_mut().map(IterMut::coerce_array_iter)),
-      #[cfg(feature = "alloc")]
-      btreemap_iter: None,
-      #[cfg(feature = "std")]
-      hashmap_iter: None,
-    }
+    IterMut { array_iter: Some(self.deref_mut().iter_mut().map(IterMut::coerce_array_iter)),
+              #[cfg(feature = "alloc")]
+              btreemap_iter: None,
+              #[cfg(feature = "std")]
+              hashmap_iter: None }
   }
 }
 
@@ -325,20 +296,16 @@ impl<'a, K: Eq + Hash, V> Iter<'a, K, V> {
   fn get_iter(&mut self) -> &mut dyn Iterator<Item = (&'a K, &'a V)> {
     #[cfg(feature = "std")]
     {
-      let (a, b, c) = (
-        self.hashmap_iter.as_mut().map(|a| a as &mut _),
-        self.array_iter.as_mut().map(|a| a as &mut _),
-        self.btreemap_iter.as_mut().map(|a| a as &mut _),
-      );
+      let (a, b, c) = (self.hashmap_iter.as_mut().map(|a| a as &mut _),
+                       self.array_iter.as_mut().map(|a| a as &mut _),
+                       self.btreemap_iter.as_mut().map(|a| a as &mut _));
       return a.or(b).or(c).unwrap();
     };
 
     #[cfg(feature = "alloc")]
     {
-      let (a, b) = (
-        self.array_iter.as_mut().map(|a| a as &mut _),
-        self.btreemap_iter.as_mut().map(|a| a as &mut _),
-      );
+      let (a, b) = (self.array_iter.as_mut().map(|a| a as &mut _),
+                    self.btreemap_iter.as_mut().map(|a| a as &mut _));
       return a.or(b).unwrap();
     }
 
@@ -394,20 +361,16 @@ impl<'a, K: Eq + Hash, V> IterMut<'a, K, V> {
   fn get_iter(&mut self) -> &mut dyn Iterator<Item = (&'a K, &'a mut V)> {
     #[cfg(feature = "std")]
     {
-      let (a, b, c) = (
-        self.hashmap_iter.as_mut().map(|a| a as &mut _),
-        self.array_iter.as_mut().map(|a| a as &mut _),
-        self.btreemap_iter.as_mut().map(|a| a as &mut _),
-      );
+      let (a, b, c) = (self.hashmap_iter.as_mut().map(|a| a as &mut _),
+                       self.array_iter.as_mut().map(|a| a as &mut _),
+                       self.btreemap_iter.as_mut().map(|a| a as &mut _));
       return a.or(b).or(c).unwrap();
     };
 
     #[cfg(feature = "alloc")]
     {
-      let (a, b) = (
-        self.array_iter.as_mut().map(|a| a as &mut _),
-        self.btreemap_iter.as_mut().map(|a| a as &mut _),
-      );
+      let (a, b) = (self.array_iter.as_mut().map(|a| a as &mut _),
+                    self.btreemap_iter.as_mut().map(|a| a as &mut _));
       return a.or(b).unwrap();
     }
 
@@ -428,18 +391,17 @@ impl<'a, K: Eq + Hash, V> Iterator for IterMut<'a, K, V> {
 mod tests {
   use super::*;
 
-  fn impls() -> (
-    impl Map<String, String>,
-    impl Map<String, String>,
-    impl Map<String, String>,
-    impl Map<String, String>,
-  ) {
-    (
-      HashMap::<String, String>::from([("foo".into(), "bar".into())]),
-      BTreeMap::<String, String>::from([("foo".into(), "bar".into())]),
-      tinyvec::array_vec!([(String, String); 16] => ("foo".into(), "bar".into())),
-      vec![("foo".to_string(), "bar".to_string())],
+  fn impls(
     )
+      -> (impl Map<String, String>,
+          impl Map<String, String>,
+          impl Map<String, String>,
+          impl Map<String, String>)
+  {
+    (HashMap::<String, String>::from([("foo".into(), "bar".into())]),
+     BTreeMap::<String, String>::from([("foo".into(), "bar".into())]),
+     tinyvec::array_vec!([(String, String); 16] => ("foo".into(), "bar".into())),
+     vec![("foo".to_string(), "bar".to_string())])
   }
 
   macro_rules! each_impl {
@@ -528,15 +490,11 @@ mod tests {
       let mut kvs = map.into_iter().collect::<Vec<_>>();
       kvs.sort();
 
-      assert_eq!(
-        kvs,
-        vec![
-          ("a".into(), "a".into()),
-          ("b".into(), "b".into()),
-          ("c".into(), "c".into()),
-          ("foo".into(), "bar".into()),
-        ]
-      );
+      assert_eq!(kvs,
+                 vec![("a".into(), "a".into()),
+                      ("b".into(), "b".into()),
+                      ("c".into(), "c".into()),
+                      ("foo".into(), "bar".into()),]);
     }
 
     each_impl!(test_into_iter);
@@ -552,15 +510,11 @@ mod tests {
       let mut kvs = map.iter().collect::<Vec<_>>();
       kvs.sort();
 
-      assert_eq!(
-        kvs,
-        vec![
-          (&"a".into(), &"a".into()),
-          (&"b".into(), &"b".into()),
-          (&"c".into(), &"c".into()),
-          (&"foo".into(), &"bar".into()),
-        ]
-      );
+      assert_eq!(kvs,
+                 vec![(&"a".into(), &"a".into()),
+                      (&"b".into(), &"b".into()),
+                      (&"c".into(), &"c".into()),
+                      (&"foo".into(), &"bar".into()),]);
     }
 
     each_impl!(test_iter);
@@ -576,15 +530,11 @@ mod tests {
       let mut kvs = map.iter_mut().collect::<Vec<_>>();
       kvs.sort();
 
-      assert_eq!(
-        kvs,
-        vec![
-          (&"a".into(), &mut "a".into()),
-          (&"b".into(), &mut "b".into()),
-          (&"c".into(), &mut "c".into()),
-          (&"foo".into(), &mut "bar".into()),
-        ]
-      );
+      assert_eq!(kvs,
+                 vec![(&"a".into(), &mut "a".into()),
+                      (&"b".into(), &mut "b".into()),
+                      (&"c".into(), &mut "c".into()),
+                      (&"foo".into(), &mut "bar".into()),]);
     }
 
     each_impl!(test_iter_mut);

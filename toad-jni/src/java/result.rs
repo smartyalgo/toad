@@ -15,18 +15,15 @@ pub trait ResultYieldToJavaOrThrow {
   fn yield_to_java_or_throw(self, e: &mut java::Env) -> jobject;
 }
 
-impl<T> ResultYieldToJavaOrThrow for Result<T, Throwable>
-where
-  T: java::Object,
+impl<T> ResultYieldToJavaOrThrow for Result<T, Throwable> where T: java::Object
 {
   fn yield_to_java_or_throw(self, e: &mut java::Env) -> jobject {
-    self
-      .map(|ok| ok.yield_to_java(e))
-      .map_err(|err| {
-        let err = JThrowable::from(err.downcast(e).to_local(e));
-        e.throw(err).unwrap()
-      })
-      .unwrap_or(*JObject::null())
+    self.map(|ok| ok.yield_to_java(e))
+        .map_err(|err| {
+          let err = JThrowable::from(err.downcast(e).to_local(e));
+          e.throw(err).unwrap()
+        })
+        .unwrap_or(*JObject::null())
   }
 }
 

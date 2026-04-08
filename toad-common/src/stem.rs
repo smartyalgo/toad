@@ -27,8 +27,7 @@ impl<T> Stem<T> {
   /// There can be any number of concurrent `map_ref`
   /// sections running at a given time.
   pub fn map_ref<F, R>(&self, f: F) -> R
-  where
-    F: for<'a> FnMut(&'a T) -> R,
+    where F: for<'a> FnMut(&'a T) -> R
   {
     self.0.map_ref(f)
   }
@@ -37,8 +36,7 @@ impl<T> Stem<T> {
   ///
   /// This will block if called concurrently with `map_ref` or `map_mut`.
   pub fn map_mut<F, R>(&self, f: F) -> R
-  where
-    F: for<'a> FnMut(&'a mut T) -> R,
+    where F: for<'a> FnMut(&'a mut T) -> R
   {
     self.0.map_mut(f)
   }
@@ -55,24 +53,21 @@ impl<T> Stem<T> {
 pub trait StemCellBehavior<T> {
   /// Create an instance of `Self`
   fn new(t: T) -> Self
-  where
-    Self: Sized;
+    where Self: Sized;
 
   /// Map a reference to `T` to a new type
   ///
   /// Implementors may choose to panic or block
   /// if `map_mut` called concurrently.
   fn map_ref<F, R>(&self, f: F) -> R
-  where
-    F: for<'a> FnMut(&'a T) -> R;
+    where F: for<'a> FnMut(&'a T) -> R;
 
   /// Map a mutable reference to `T` to a new type
   ///
   /// Implementors may choose to panic or block
   /// if `map_ref` or `map_mut` called concurrently.
   fn map_mut<F, R>(&self, f: F) -> R
-  where
-    F: for<'a> FnMut(&'a mut T) -> R;
+    where F: for<'a> FnMut(&'a mut T) -> R;
 }
 
 #[cfg(feature = "std")]
@@ -82,15 +77,13 @@ impl<T> StemCellBehavior<T> for std::sync::RwLock<T> {
   }
 
   fn map_ref<F, R>(&self, mut f: F) -> R
-  where
-    F: for<'a> FnMut(&'a T) -> R,
+    where F: for<'a> FnMut(&'a T) -> R
   {
     f(self.read().unwrap().deref())
   }
 
   fn map_mut<F, R>(&self, mut f: F) -> R
-  where
-    F: for<'a> FnMut(&'a mut T) -> R,
+    where F: for<'a> FnMut(&'a mut T) -> R
   {
     f(self.write().unwrap().deref_mut())
   }
@@ -102,15 +95,13 @@ impl<T> StemCellBehavior<T> for core::cell::RefCell<T> {
   }
 
   fn map_ref<F, R>(&self, mut f: F) -> R
-  where
-    F: for<'a> FnMut(&'a T) -> R,
+    where F: for<'a> FnMut(&'a T) -> R
   {
     f(self.borrow().deref())
   }
 
   fn map_mut<F, R>(&self, mut f: F) -> R
-  where
-    F: for<'a> FnMut(&'a mut T) -> R,
+    where F: for<'a> FnMut(&'a mut T) -> R
   {
     f(self.borrow_mut().deref_mut())
   }
@@ -173,10 +164,10 @@ mod test {
       std::thread::spawn(|| {
         wait!(START);
         VEC.map_ref(|v| {
-          assert!(v.is_empty());
-          wait!(READING);
-          wait!(READING_DONE);
-        });
+             assert!(v.is_empty());
+             wait!(READING);
+             wait!(READING_DONE);
+           });
 
         wait!(MODIFY_DONE);
       });

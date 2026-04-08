@@ -157,41 +157,29 @@ pub struct Msg {
 
 impl Default for Con {
   fn default() -> Self {
-    Con {
-      unacked_retry_strategy: Strategy::Exponential {
-        init_min: Milliseconds(500),
-        init_max: Milliseconds(1_000),
-      },
-      acked_retry_strategy: Strategy::Exponential {
-        init_min: Milliseconds(1_000),
-        init_max: Milliseconds(2_000),
-      },
-      max_attempts: Attempts(4),
-    }
+    Con { unacked_retry_strategy: Strategy::Exponential { init_min: Milliseconds(500),
+                                                          init_max: Milliseconds(1_000) },
+          acked_retry_strategy: Strategy::Exponential { init_min: Milliseconds(1_000),
+                                                        init_max: Milliseconds(2_000) },
+          max_attempts: Attempts(4) }
   }
 }
 
 impl Default for Non {
   fn default() -> Self {
-    Non {
-      retry_strategy: Strategy::Exponential {
-        init_min: Milliseconds(250),
-        init_max: Milliseconds(500),
-      },
-      max_attempts: Attempts(4),
-    }
+    Non { retry_strategy: Strategy::Exponential { init_min: Milliseconds(250),
+                                                  init_max: Milliseconds(500) },
+          max_attempts: Attempts(4) }
   }
 }
 
 impl Default for Msg {
   fn default() -> Self {
-    Msg {
-      token_seed: 0,
-      probing_rate: BytesPerSecond(1000),
-      con: Con::default(),
-      non: Non::default(),
-      multicast_response_leisure: Milliseconds(5000),
-    }
+    Msg { token_seed: 0,
+          probing_rate: BytesPerSecond(1000),
+          con: Con::default(),
+          non: Non::default(),
+          multicast_response_leisure: Milliseconds(5000) }
   }
 }
 
@@ -215,60 +203,52 @@ pub struct Config {
 
 impl Default for Config {
   fn default() -> Self {
-    Config {
-      msg: Msg::default(),
-      max_concurrent_requests: 1,
-    }
+    Config { msg: Msg::default(),
+             max_concurrent_requests: 1 }
   }
 }
 
 impl Config {
   pub(crate) fn max_transmit_span_millis(&self) -> u64 {
-    let acked_con = self
-      .msg
-      .con
-      .acked_retry_strategy
-      .max_time(self.msg.con.max_attempts - Attempts(1))
-      .0 as u64;
+    let acked_con = self.msg
+                        .con
+                        .acked_retry_strategy
+                        .max_time(self.msg.con.max_attempts - Attempts(1))
+                        .0 as u64;
 
-    let unacked_con = self
-      .msg
-      .con
-      .unacked_retry_strategy
-      .max_time(self.msg.con.max_attempts - Attempts(1))
-      .0 as u64;
+    let unacked_con = self.msg
+                          .con
+                          .unacked_retry_strategy
+                          .max_time(self.msg.con.max_attempts - Attempts(1))
+                          .0 as u64;
 
-    let non = self
-      .msg
-      .non
-      .retry_strategy
-      .max_time(self.msg.non.max_attempts - Attempts(1))
-      .0 as u64;
+    let non = self.msg
+                  .non
+                  .retry_strategy
+                  .max_time(self.msg.non.max_attempts - Attempts(1))
+                  .0 as u64;
 
     acked_con.max(unacked_con).max(non)
   }
 
   pub(crate) fn max_transmit_wait_millis(&self) -> u64 {
-    let acked_con = self
-      .msg
-      .con
-      .acked_retry_strategy
-      .max_time(self.msg.con.max_attempts)
-      .0 as u64;
+    let acked_con = self.msg
+                        .con
+                        .acked_retry_strategy
+                        .max_time(self.msg.con.max_attempts)
+                        .0 as u64;
 
-    let unacked_con = self
-      .msg
-      .con
-      .unacked_retry_strategy
-      .max_time(self.msg.con.max_attempts)
-      .0 as u64;
+    let unacked_con = self.msg
+                          .con
+                          .unacked_retry_strategy
+                          .max_time(self.msg.con.max_attempts)
+                          .0 as u64;
 
-    let non = self
-      .msg
-      .non
-      .retry_strategy
-      .max_time(self.msg.non.max_attempts)
-      .0 as u64;
+    let non = self.msg
+                  .non
+                  .retry_strategy
+                  .max_time(self.msg.non.max_attempts)
+                  .0 as u64;
 
     acked_con.max(unacked_con).max(non)
   }
@@ -284,7 +264,7 @@ impl Config {
 
   pub(crate) fn exchange_lifetime_millis(&self) -> u64 {
     self.max_transmit_span_millis()
-      + (2 * self.max_latency_millis())
-      + self.expected_processing_delay_millis()
+    + (2 * self.max_latency_millis())
+    + self.expected_processing_delay_millis()
   }
 }

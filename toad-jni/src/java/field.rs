@@ -15,17 +15,14 @@ pub struct Field<C, T> {
 }
 
 impl<C, T> Field<C, T>
-where
-  C: java::Class,
-  T: java::Object,
+  where C: java::Class,
+        T: java::Object
 {
   /// Creates a new field lens
   pub const fn new(name: &'static str) -> Self {
-    Self {
-      name,
-      id: RwLock::new(None),
-      _t: PhantomData,
-    }
+    Self { name,
+           id: RwLock::new(None),
+           _t: PhantomData }
   }
 
   /// Get the value of this field
@@ -41,13 +38,11 @@ where
       self.get(e, inst)
     } else {
       let inst = inst.downcast_ref(e);
-      let val = e
-        .get_field_unchecked(
-          &inst,
-          id.unwrap(),
-          jni::signature::ReturnType::from_str(T::SIG.as_str()).unwrap(),
-        )
-        .unwrap_java(e);
+      let val =
+        e.get_field_unchecked(&inst,
+                              id.unwrap(),
+                              jni::signature::ReturnType::from_str(T::SIG.as_str()).unwrap())
+         .unwrap_java(e);
       T::upcast_value(e, val)
     }
   }
@@ -57,7 +52,7 @@ where
     let inst = inst.downcast_ref(e);
     let t = t.downcast_value(e);
     e.set_field(inst, self.name, T::SIG, (&t).into())
-      .unwrap_java(e);
+     .unwrap_java(e);
   }
 }
 
@@ -69,17 +64,14 @@ pub struct StaticField<C, T> {
 }
 
 impl<C, T> StaticField<C, T>
-where
-  C: java::Class,
-  T: java::Object,
+  where C: java::Class,
+        T: java::Object
 {
   /// Creates a new static field lens
   pub const fn new(name: &'static str) -> Self {
-    Self {
-      name,
-      id: RwLock::new(None),
-      _t: PhantomData,
-    }
+    Self { name,
+           id: RwLock::new(None),
+           _t: PhantomData }
   }
 
   /// Get the static field value
@@ -89,17 +81,14 @@ where
       drop(id);
 
       let mut id = self.id.write().unwrap();
-      *id = Some(
-        e.get_static_field_id(C::PATH, self.name, T::SIG)
-          .unwrap_java(e),
-      );
+      *id = Some(e.get_static_field_id(C::PATH, self.name, T::SIG)
+                  .unwrap_java(e));
       drop(id);
 
       self.get(e)
     } else {
-      let val = e
-        .get_static_field_unchecked(C::PATH, id.unwrap(), T::jni())
-        .unwrap();
+      let val = e.get_static_field_unchecked(C::PATH, id.unwrap(), T::jni())
+                 .unwrap();
       T::upcast_value(e, val)
     }
   }

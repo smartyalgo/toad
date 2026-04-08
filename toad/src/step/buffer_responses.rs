@@ -27,33 +27,23 @@ pub struct BufferResponses<S, B> {
 
 impl<S: Default, B: Default> Default for BufferResponses<S, B> {
   fn default() -> Self {
-    Self {
-      buffer: Default::default(),
-      inner: S::default(),
-    }
+    Self { buffer: Default::default(),
+           inner: S::default() }
   }
 }
 
 impl<S, B> BufferResponses<S, B> {
   fn store<P>(&self, resp: Addrd<Resp<P>>)
-  where
-    P: PlatformTypes,
-    B: Map<(SocketAddr, Token, Type), Addrd<Resp<P>>>,
+    where P: PlatformTypes,
+          B: Map<(SocketAddr, Token, Type), Addrd<Resp<P>>>
   {
     let mut resp_removable = Some(resp);
     self.buffer.map_mut(|buf| {
-      let resp = Option::take(&mut resp_removable).unwrap();
-      buf
-        .insert(
-          (
-            resp.addr(),
-            resp.data().as_ref().token,
-            resp.data().as_ref().ty,
-          ),
-          resp,
-        )
-        .ok()
-    });
+                 let resp = Option::take(&mut resp_removable).unwrap();
+                 buf.insert((resp.addr(), resp.data().as_ref().token, resp.data().as_ref().ty),
+                            resp)
+                    .ok()
+               });
   }
 }
 
@@ -90,12 +80,11 @@ impl<E: core::fmt::Debug> core::fmt::Debug for Error<E> {
 
 impl<E: super::Error> super::Error for Error<E> {}
 
-impl<
-    P: PlatformTypes,
-    B: Map<(SocketAddr, Token, Type), Addrd<Resp<P>>>,
-    E: super::Error,
-    S: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>,
-  > Step<P> for BufferResponses<S, B>
+impl<P: PlatformTypes,
+      B: Map<(SocketAddr, Token, Type), Addrd<Resp<P>>>,
+      E: super::Error,
+      S: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>> Step<P>
+  for BufferResponses<S, B>
 {
   type PollReq = Addrd<Req<P>>;
   type PollResp = Addrd<Resp<P>>;
@@ -106,28 +95,23 @@ impl<
     &self.inner
   }
 
-  fn poll_req(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-  ) -> StepOutput<Self::PollReq, Self::Error> {
-    self
-      .inner
-      .poll_req(snap, effects)
-      .map(|o| o.map_err(|e| e.map(Error::Inner)))
+  fn poll_req(&self,
+              snap: &crate::platform::Snapshot<P>,
+              effects: &mut <P as PlatformTypes>::Effects)
+              -> StepOutput<Self::PollReq, Self::Error> {
+    self.inner
+        .poll_req(snap, effects)
+        .map(|o| o.map_err(|e| e.map(Error::Inner)))
   }
 
-  fn poll_resp(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-    token: toad_msg::Token,
-    addr: no_std_net::SocketAddr,
-  ) -> StepOutput<Self::PollResp, Self::Error> {
-    let resp = exec_inner_step!(
-      self.inner.poll_resp(snap, effects, token, addr),
-      Error::Inner
-    );
+  fn poll_resp(&self,
+               snap: &crate::platform::Snapshot<P>,
+               effects: &mut <P as PlatformTypes>::Effects,
+               token: toad_msg::Token,
+               addr: no_std_net::SocketAddr)
+               -> StepOutput<Self::PollResp, Self::Error> {
+    let resp = exec_inner_step!(self.inner.poll_resp(snap, effects, token, addr),
+                                Error::Inner);
 
     if self.buffer.map_ref(Len::is_full) {
       return Some(Err(nb::Error::Other(Error::BufferResponsesFull)));
@@ -143,20 +127,16 @@ impl<
       | Some(resp) if is_what_we_polled_for(&resp) => Some(Ok(resp)),
       | Some(resp) => {
         let mut msg = String::<1000>::default();
-        write!(
-          &mut msg,
-          "polled for response to {:?}, got response with token {:?}",
-          token,
-          resp.data().token()
-        )
-        .ok();
+        write!(&mut msg,
+               "polled for response to {:?}, got response with token {:?}",
+               token,
+               resp.data().token()).ok();
         effects.push(Effect::Log(log::Level::Info, msg));
         self.store(resp);
 
-        match try_remove_from_buffer(Type::Ack)
-          .or_else(|| try_remove_from_buffer(Type::Con))
-          .or_else(|| try_remove_from_buffer(Type::Non))
-          .or_else(|| try_remove_from_buffer(Type::Reset))
+        match try_remove_from_buffer(Type::Ack).or_else(|| try_remove_from_buffer(Type::Con))
+                                               .or_else(|| try_remove_from_buffer(Type::Non))
+                                               .or_else(|| try_remove_from_buffer(Type::Reset))
         {
           | Some(resp) => Some(Ok(resp)),
           | None => Some(Err(nb::Error::WouldBlock)),

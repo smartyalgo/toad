@@ -59,57 +59,48 @@ pub struct ProvisionTokens<Inner> {
   inner: Inner,
 }
 
-impl<Inner> Default for ProvisionTokens<Inner>
-where
-  Inner: Default,
+impl<Inner> Default for ProvisionTokens<Inner> where Inner: Default
 {
   fn default() -> Self {
-    Self {
-      inner: Default::default(),
-    }
+    Self { inner: Default::default() }
   }
 }
 
 impl<Inner> ProvisionTokens<Inner> {
-  fn next<P>(
-    &self,
-    effs: &mut P::Effects,
-    now: Instant<P::Clock>,
-    cfg: Config,
-  ) -> Result<Token, Error<Inner::Error>>
-  where
-    P: PlatformTypes,
-    Inner: Step<P>,
+  fn next<P>(&self,
+             effs: &mut P::Effects,
+             now: Instant<P::Clock>,
+             cfg: Config)
+             -> Result<Token, Error<Inner::Error>>
+    where P: PlatformTypes,
+          Inner: Step<P>
   {
     // TODO(orion): we may want to handle this
-    let now_since_epoch = Millis::try_from(now.duration_since_epoch())
-      .map_err(|_| Error::MillisSinceEpochWouldOverflow)?;
+    let now_since_epoch =
+      Millis::try_from(now.duration_since_epoch()).map_err(|_| {
+                                                    Error::MillisSinceEpochWouldOverflow
+                                                  })?;
 
     #[allow(clippy::many_single_char_names)]
     let bytes = {
-      let ([a, b], [c, d, e, f, g, h, i, j]) = (
-        cfg.msg.token_seed.to_be_bytes(),
-        now_since_epoch.0.to_be_bytes(),
-      );
+      let ([a, b], [c, d, e, f, g, h, i, j]) =
+        (cfg.msg.token_seed.to_be_bytes(), now_since_epoch.0.to_be_bytes());
       [a, b, c, d, e, f, g, h, i, j]
     };
 
     let next = Token::opaque(&bytes);
-    log!(
-      ProvisionTokens::next,
-      effs,
-      log::Level::Debug,
-      "Generated new {:?}",
-      next
-    );
+    log!(ProvisionTokens::next,
+         effs,
+         log::Level::Debug,
+         "Generated new {:?}",
+         next);
     Ok(next)
   }
 }
 
 impl<P, E: super::Error, Inner> Step<P> for ProvisionTokens<Inner>
-where
-  P: PlatformTypes,
-  Inner: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>,
+  where P: PlatformTypes,
+        Inner: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>
 {
   type PollReq = Addrd<Req<P>>;
   type PollResp = Addrd<Resp<P>>;
@@ -120,12 +111,11 @@ where
     &self.inner
   }
 
-  fn before_message_sent(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effs: &mut P::Effects,
-    msg: &mut Addrd<platform::Message<P>>,
-  ) -> Result<(), Self::Error> {
+  fn before_message_sent(&self,
+                         snap: &platform::Snapshot<P>,
+                         effs: &mut P::Effects,
+                         msg: &mut Addrd<platform::Message<P>>)
+                         -> Result<(), Self::Error> {
     self.inner.before_message_sent(snap, effs, msg)?;
 
     let token = match (msg.data().code.kind(), msg.data().token) {
@@ -140,28 +130,24 @@ where
     Ok(())
   }
 
-  fn poll_req(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-  ) -> super::StepOutput<Self::PollReq, Self::Error> {
-    self
-      .inner
-      .poll_req(snap, effects)
-      .map(|r| r.map_err(|e| e.map(Error::Inner)))
+  fn poll_req(&self,
+              snap: &platform::Snapshot<P>,
+              effects: &mut <P as PlatformTypes>::Effects)
+              -> super::StepOutput<Self::PollReq, Self::Error> {
+    self.inner
+        .poll_req(snap, effects)
+        .map(|r| r.map_err(|e| e.map(Error::Inner)))
   }
 
-  fn poll_resp(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-    token: Token,
-    addr: SocketAddr,
-  ) -> super::StepOutput<Self::PollResp, Self::Error> {
-    self
-      .inner
-      .poll_resp(snap, effects, token, addr)
-      .map(|r| r.map_err(|e| e.map(Error::Inner)))
+  fn poll_resp(&self,
+               snap: &platform::Snapshot<P>,
+               effects: &mut <P as PlatformTypes>::Effects,
+               token: Token,
+               addr: SocketAddr)
+               -> super::StepOutput<Self::PollResp, Self::Error> {
+    self.inner
+        .poll_resp(snap, effects, token, addr)
+        .map(|r| r.map_err(|e| e.map(Error::Inner)))
   }
 }
 
