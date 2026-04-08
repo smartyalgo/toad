@@ -8,16 +8,12 @@ use crate::java;
 /// java/util/ArrayList
 pub struct ArrayList<T>(java::lang::Object, PhantomData<T>);
 
-impl<T> java::Class for ArrayList<T>
-where
-  T: java::Object,
+impl<T> java::Class for ArrayList<T> where T: java::Object
 {
   const PATH: &'static str = "java/util/ArrayList";
 }
 
-impl<T> java::Object for ArrayList<T>
-where
-  T: java::Object,
+impl<T> java::Object for ArrayList<T> where T: java::Object
 {
   fn upcast(_e: &mut java::Env, jobj: java::lang::Object) -> Self {
     Self(jobj, PhantomData)
@@ -32,9 +28,7 @@ where
   }
 }
 
-impl<T> ArrayList<T>
-where
-  T: java::Object,
+impl<T> ArrayList<T> where T: java::Object
 {
   /// java.util.ArrayList.get(int)
   pub fn get(&self, e: &mut java::Env, ix: i32) -> T {
@@ -98,22 +92,18 @@ where
   }
 }
 
-impl<T> Extend<T> for ArrayList<T>
-where
-  T: java::Object,
+impl<T> Extend<T> for ArrayList<T> where T: java::Object
 {
   fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
     let mut e = java::env();
     let e = &mut e;
     iter.into_iter().for_each(|t| {
-      self.append(e, t);
-    })
+                      self.append(e, t);
+                    })
   }
 }
 
-impl<T> Len for ArrayList<T>
-where
-  T: java::Object,
+impl<T> Len for ArrayList<T> where T: java::Object
 {
   const CAPACITY: Option<usize> = None;
 
@@ -126,9 +116,7 @@ where
   }
 }
 
-impl<T> Trunc for ArrayList<T>
-where
-  T: java::Object,
+impl<T> Trunc for ArrayList<T> where T: java::Object
 {
   fn trunc(&mut self, desired_len: usize) -> () {
     let mut e = java::env();
@@ -151,25 +139,19 @@ where
   }
 }
 
-impl<T> IntoIterator for ArrayList<T>
-where
-  T: java::Object,
+impl<T> IntoIterator for ArrayList<T> where T: java::Object
 {
   type Item = T;
   type IntoIter = ArrayListIter<T>;
 
   fn into_iter(self) -> Self::IntoIter {
-    ArrayListIter {
-      ix: 0,
-      len: self.len(),
-      list: self,
-    }
+    ArrayListIter { ix: 0,
+                    len: self.len(),
+                    list: self }
   }
 }
 
-impl<T> FromIterator<T> for ArrayList<T>
-where
-  T: java::Object,
+impl<T> FromIterator<T> for ArrayList<T> where T: java::Object
 {
   fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
     let mut e = java::env();
@@ -185,22 +167,17 @@ where
   }
 }
 
-impl<T> Default for ArrayList<T>
-where
-  T: java::Object,
+impl<T> Default for ArrayList<T> where T: java::Object
 {
   fn default() -> Self {
     Self::new(&mut java::env())
   }
 }
 
-impl<T> Filled<T> for ArrayList<T>
-where
-  T: java::Object,
+impl<T> Filled<T> for ArrayList<T> where T: java::Object
 {
   fn filled_using<F>(_: F) -> Option<Self>
-  where
-    F: Fn() -> T,
+    where F: Fn() -> T
   {
     None
   }
@@ -215,9 +192,7 @@ pub struct ArrayListIter<T> {
   len: usize,
 }
 
-impl<T> Iterator for ArrayListIter<T>
-where
-  T: java::Object,
+impl<T> Iterator for ArrayListIter<T> where T: java::Object
 {
   type Item = T;
 

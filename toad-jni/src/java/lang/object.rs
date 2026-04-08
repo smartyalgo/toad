@@ -14,16 +14,14 @@ pub struct Object(GlobalRef);
 impl Object {
   /// Is this object `instanceof C`?
   pub fn is_instance_of<T>(&self, e: &mut java::Env) -> bool
-  where
-    T: java::Type,
+    where T: java::Type
   {
     T::is_type_of(e, self)
   }
 
   /// Shorthand for `T::upcast(e, jobj)`
   pub fn upcast_to<T>(self, e: &mut java::Env) -> T
-  where
-    T: java::Object,
+    where T: java::Object
   {
     T::upcast(e, self)
   }
@@ -63,26 +61,23 @@ impl Object {
 
   /// Convert an owned local jvalue to an object
   pub fn from_value<'a, 'b>(e: &mut java::Env<'a>, jv: JValueGen<JObject<'b>>) -> Self
-  where
-    'a: 'b,
+    where 'a: 'b
   {
     Self::from_local(e, jv.l().unwrap())
   }
 
   /// Convert a borrowed local jvalue to an object
   pub fn from_value_ref<'a, 'b, 'c>(e: &mut java::Env<'a>, jv: JValueGen<&'c JObject<'b>>) -> Self
-  where
-    'a: 'b,
-    'c: 'b,
+    where 'a: 'b,
+          'c: 'b
   {
     Self::from_local(e, jv.l().unwrap())
   }
 
   /// Convert a local jobject to an object
   pub fn from_local<'a, 'b, T>(e: &mut java::Env<'a>, t: T) -> Self
-  where
-    'a: 'b,
-    T: AsRef<JObject<'b>>,
+    where 'a: 'b,
+          T: AsRef<JObject<'b>>
   {
     Self(e.new_global_ref(t.as_ref()).unwrap_java(e))
   }
@@ -126,22 +121,19 @@ impl java::Object for Object {
   }
 
   fn upcast_value_ref<'e>(e: &mut java::Env<'e>, jv: jni::objects::JValue<'e, '_>) -> Self
-  where
-    Self: Sized,
+    where Self: Sized
   {
     Self::from_value_ref(e, jv)
   }
 
   fn upcast_value<'e>(e: &mut java::Env<'e>, jv: jni::objects::JValueOwned<'e>) -> Self
-  where
-    Self: Sized,
+    where Self: Sized
   {
     Self::from_value(e, jv)
   }
 
   fn downcast_value<'e>(self, e: &mut java::Env<'e>) -> jni::objects::JValueOwned<'e>
-  where
-    Self: Sized,
+    where Self: Sized
   {
     self.to_value(e)
   }

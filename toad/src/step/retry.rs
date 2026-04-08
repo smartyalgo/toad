@@ -1,4 +1,3 @@
-use crate::time::{Instant, Millis, Milliseconds};
 use toad_array::Array;
 use toad_msg::{CodeKind, Token, Type};
 use toad_stem::Stem;
@@ -11,6 +10,7 @@ use crate::platform::{self, Effect, PlatformTypes, Snapshot};
 use crate::req::Req;
 use crate::resp::Resp;
 use crate::retry::{Attempts, RetryTimer, Strategy, YouShould};
+use crate::time::{Instant, Millis, Milliseconds};
 
 #[allow(missing_docs)]
 #[allow(missing_debug_implementations)]
@@ -25,89 +25,76 @@ pub struct Debug {
 
 /// Buffer used to store messages queued for retry
 pub trait Buf<P>
-where
-  P: PlatformTypes,
-  Self: Array<Item = (State, Addrd<platform::Message<P>>)>,
+  where P: PlatformTypes,
+        Self: Array<Item = (State, Addrd<platform::Message<P>>)>
 {
   /// Data points used by log messaging
   fn debug(now: Instant, state: &State, msg: &Addrd<platform::toad_msg::Message<P>>) -> Debug {
-    let msg_short = format!(
-      100,
-      "{:?} {:?} {:?}",
-      msg.data().ty,
-      msg.data().code,
-      msg.data().token
-    );
+    let msg_short = format!(100,
+                            "{:?} {:?} {:?}",
+                            msg.data().ty,
+                            msg.data().code,
+                            msg.data().token);
     let since_first_attempt = now - state.retry_timer().first_attempted_at();
     let since_last_attempt = now - state.retry_timer().last_attempted_at();
     let next = state.retry_timer().next_attempt_at();
     let until_next_attempt = if next > now { Some(next - now) } else { None };
     let msg_should_be = if msg.data().ty == Type::Con {
-      "acknowledged"
-    } else {
-      "responded to"
-    }
-    .into();
-    Debug {
-      since_first_attempt,
-      since_last_attempt,
-      until_next_attempt,
-      msg_should_be,
-      msg_short,
-    }
+                          "acknowledged"
+                        } else {
+                          "responded to"
+                        }.into();
+    Debug { since_first_attempt,
+            since_last_attempt,
+            until_next_attempt,
+            msg_should_be,
+            msg_short }
   }
 
   /// Send all messages that need to be sent
   fn attempt_all<E>(&mut self, now: Instant, effects: &mut P::Effects) -> Result<(), Error<E>> {
     self.iter_mut().for_each(|(state, msg)| {
-      let dbg = Self::debug(now, state, msg);
-      match state.timer().what_should_i_do(now) {
-        | Ok(YouShould::Retry) => {
-          log!(
-            retry::Buf::attempt_all,
-            effects,
-            log::Level::Info,
-            "{} not {} in {}ms. retrying...",
-            dbg.msg_short,
-            dbg.msg_should_be,
-            dbg.since_last_attempt
-          );
-          effects.push(Effect::Send(msg.clone()));
-        },
-        | _ => log!(
-          retry::Buf::attempt_all,
-          effects,
-          log::Level::Trace,
-          "{} not {} in {}ms, will retry in {:?}",
-          dbg.msg_short,
-          dbg.msg_should_be,
-          dbg.since_last_attempt,
-          dbg.until_next_attempt
-        ),
-      }
-    });
+                     let dbg = Self::debug(now, state, msg);
+                     match state.timer().what_should_i_do(now) {
+                       | Ok(YouShould::Retry) => {
+                         log!(retry::Buf::attempt_all,
+                              effects,
+                              log::Level::Info,
+                              "{} not {} in {}ms. retrying...",
+                              dbg.msg_short,
+                              dbg.msg_should_be,
+                              dbg.since_last_attempt);
+                         effects.push(Effect::Send(msg.clone()));
+                       },
+                       | _ => log!(retry::Buf::attempt_all,
+                                   effects,
+                                   log::Level::Trace,
+                                   "{} not {} in {}ms, will retry in {:?}",
+                                   dbg.msg_short,
+                                   dbg.msg_should_be,
+                                   dbg.since_last_attempt,
+                                   dbg.until_next_attempt),
+                     }
+                   });
     Ok(())
   }
 
   /// We saw a response and should remove all tracking of a token (if we have any)
   fn forget(&mut self, now: Instant, effects: &mut P::Effects, token: Token) {
-    match self
-      .iter()
-      .enumerate()
-      .find(|(_, (_, msg))| msg.data().token == token)
+    match self.iter()
+              .enumerate()
+              .find(|(_, (_, msg))| msg.data().token == token)
     {
       | Some((ix, (state, msg))) => {
         let dbg = Self::debug(now, state, msg);
-        log!(
-          retry::Buf::forget,
-          effects,
-          log::Level::Debug,
-          "{} {} after waiting {}ms since last attempt (first attempt {}ms ago)",
-          dbg.msg_short,
-          dbg.msg_should_be,
-          dbg.since_last_attempt,
-          dbg.since_first_attempt
-        );
+        log!(retry::Buf::forget,
+             effects,
+             log::Level::Debug,
+             "{} {} after waiting {}ms since last attempt (first attempt {}ms ago)",
+             dbg.msg_short,
+             dbg.msg_should_be,
+             dbg.since_last_attempt,
+             dbg.since_first_attempt);
         self.remove(ix);
       },
       | _ => (),
@@ -125,35 +112,31 @@ where
       },
       | Some((state, msg)) if matches!(state, State::ConPreAck { .. }) => {
         let dbg = Self::debug(now, state, msg);
-        log!(
-          retry::Buf::mark_acked,
-          effects,
-          log::Level::Debug,
-          "{} request acked after waiting {}ms since last attempt (first attempt {}ms ago)",
-          dbg.msg_short,
-          dbg.since_last_attempt,
-          dbg.since_first_attempt
-        );
+        log!(retry::Buf::mark_acked,
+             effects,
+             log::Level::Debug,
+             "{} request acked after waiting {}ms since last attempt (first attempt {}ms ago)",
+             dbg.msg_short,
+             dbg.since_last_attempt,
+             dbg.since_first_attempt);
 
         let timer = match state {
-          | State::ConPreAck {
-            post_ack_strategy,
-            post_ack_max_attempts,
-            ..
-          } => RetryTimer::new(now, *post_ack_strategy, *post_ack_max_attempts),
+          | State::ConPreAck { post_ack_strategy,
+                               post_ack_max_attempts,
+                               .. } => {
+            RetryTimer::new(now, *post_ack_strategy, *post_ack_max_attempts)
+          },
           | _ => unreachable!(),
         };
 
         *state = State::Just(timer);
       },
       | _ => {
-        log!(
-          retry::Buf::mark_acked,
-          effects,
-          log::Level::Info,
-          "ACK {:?} does not apply to any known messages",
-          token
-        );
+        log!(retry::Buf::mark_acked,
+             effects,
+             log::Level::Info,
+             "ACK {:?} does not apply to any known messages",
+             token);
       },
     };
   }
@@ -165,23 +148,19 @@ where
     match found {
       | Some((state, msg)) => {
         let dbg = Self::debug(now, state, msg);
-        log!(
-          retry::Buf::mark_reset,
-          effects,
-          log::Level::Debug,
-          "{} got RESET, dropping all retry state.",
-          dbg.msg_short
-        );
+        log!(retry::Buf::mark_reset,
+             effects,
+             log::Level::Debug,
+             "{} got RESET, dropping all retry state.",
+             dbg.msg_short);
         self.forget(now, effects, token)
       },
       | _ => {
-        log!(
-          retry::Buf::mark_reset,
-          effects,
-          log::Level::Info,
-          "RESET {:?} does not correspond to any known messages",
-          token
-        );
+        log!(retry::Buf::mark_reset,
+             effects,
+             log::Level::Info,
+             "RESET {:?} does not correspond to any known messages",
+             token);
       },
     };
   }
@@ -190,12 +169,11 @@ where
   /// received
   ///
   /// May invoke `mark_acked` & `forget`
-  fn maybe_seen_response<E>(
-    &mut self,
-    now: Instant,
-    effects: &mut P::Effects,
-    msg: Addrd<&platform::Message<P>>,
-  ) -> Result<(), Error<E>> {
+  fn maybe_seen_response<E>(&mut self,
+                            now: Instant,
+                            effects: &mut P::Effects,
+                            msg: Addrd<&platform::Message<P>>)
+                            -> Result<(), Error<E>> {
     match (msg.data().ty, msg.data().code.kind()) {
       | (Type::Reset, _) => {
         self.mark_reset(now, effects, msg.data().token);
@@ -212,14 +190,12 @@ where
         Ok(())
       },
       | _ => {
-        log!(
-          retry::Buf::maybe_seen_response,
-          effects,
-          log::Level::Trace,
-          "ignoring a {:?} {:?} message; could not possibly affect any pending retries",
-          msg.data().ty,
-          msg.data().code
-        );
+        log!(retry::Buf::maybe_seen_response,
+             effects,
+             log::Level::Trace,
+             "ignoring a {:?} {:?} message; could not possibly affect any pending retries",
+             msg.data().ty,
+             msg.data().code);
         Ok(())
       },
     }
@@ -227,66 +203,51 @@ where
 
   /// Called when a message of any kind is sent,
   /// and may store it to be retried in the future
-  fn store_retryables<E>(
-    &mut self,
-    now: Instant,
-    effects: &mut P::Effects,
-    msg: &Addrd<platform::Message<P>>,
-    config: Config,
-  ) -> Result<(), Error<E>> {
+  fn store_retryables<E>(&mut self,
+                         now: Instant,
+                         effects: &mut P::Effects,
+                         msg: &Addrd<platform::Message<P>>,
+                         config: Config)
+                         -> Result<(), Error<E>> {
     match msg.data().ty {
       | Type::Con | Type::Non if self.is_full() => Err(Error::RetryBufferFull),
       | Type::Con => {
-        let timer = RetryTimer::new(
-          now,
-          config.msg.con.unacked_retry_strategy,
-          config.msg.con.max_attempts,
-        );
-        self.push((
-          State::ConPreAck {
-            timer,
-            post_ack_strategy: config.msg.con.acked_retry_strategy,
-            post_ack_max_attempts: config.msg.con.max_attempts,
-          },
-          msg.clone(),
-        ));
+        let timer = RetryTimer::new(now,
+                                    config.msg.con.unacked_retry_strategy,
+                                    config.msg.con.max_attempts);
+        self.push((State::ConPreAck { timer,
+                                      post_ack_strategy: config.msg.con.acked_retry_strategy,
+                                      post_ack_max_attempts: config.msg.con.max_attempts },
+                   msg.clone()));
 
-        log!(
-          retry::Buf::store_retryables,
-          effects,
-          log::Level::Trace,
-          "sent CON {:?}; will retry if no ACK",
-          msg.data().code
-        );
+        log!(retry::Buf::store_retryables,
+             effects,
+             log::Level::Trace,
+             "sent CON {:?}; will retry if no ACK",
+             msg.data().code);
 
         Ok(())
       },
       | Type::Non if msg.data().code.kind() == CodeKind::Request => {
-        log!(
-          retry::Buf::store_retryables,
-          effects,
-          log::Level::Trace,
-          "sent NON request {:?}; will retry if no response",
-          msg.data().code
-        );
-        let timer = RetryTimer::new(
-          now,
-          config.msg.non.retry_strategy,
-          config.msg.non.max_attempts,
-        );
+        log!(retry::Buf::store_retryables,
+             effects,
+             log::Level::Trace,
+             "sent NON request {:?}; will retry if no response",
+             msg.data().code);
+        let timer = RetryTimer::new(now,
+                                    config.msg.non.retry_strategy,
+                                    config.msg.non.max_attempts);
         self.push((State::Just(timer), msg.clone()));
 
         Ok(())
       },
       | _ => {
-        log!(
-          retry::Buf::store_retryables,
-          effects,
-          log::Level::Trace,
-          "{:?} {:?} will not be retried",
-          msg.data().ty,
-          msg.data().code
-        );
+        log!(retry::Buf::store_retryables,
+             effects,
+             log::Level::Trace,
+             "{:?} {:?} will not be retried",
+             msg.data().ty,
+             msg.data().code);
         Ok(())
       },
     }
@@ -294,9 +255,8 @@ where
 }
 
 impl<T, P> Buf<P> for T
-where
-  T: Array<Item = (State, Addrd<platform::Message<P>>)>,
-  P: PlatformTypes,
+  where T: Array<Item = (State, Addrd<platform::Message<P>>)>,
+        P: PlatformTypes
 {
 }
 
@@ -346,14 +306,10 @@ impl State {
 
 impl Default for State {
   fn default() -> Self {
-    Self::new(
-      Instant::new(0),
-      Strategy::Delay {
-        min: Milliseconds(0),
-        max: Milliseconds(0),
-      },
-      Attempts::default(),
-    )
+    Self::new(Instant::new(0),
+              Strategy::Delay { min: Milliseconds(0),
+                                max: Milliseconds(0) },
+              Attempts::default())
   }
 }
 
@@ -367,15 +323,12 @@ pub struct Retry<Inner, Buffer> {
 }
 
 impl<Inner, Buffer> Default for Retry<Inner, Buffer>
-where
-  Inner: Default,
-  Buffer: Default,
+  where Inner: Default,
+        Buffer: Default
 {
   fn default() -> Self {
-    Self {
-      inner: Inner::default(),
-      buf: Stem::<Buffer>::default(),
-    }
+    Self { inner: Inner::default(),
+           buf: Stem::<Buffer>::default() }
   }
 }
 
@@ -413,11 +366,10 @@ impl<E> From<E> for Error<E> {
 }
 
 impl<P, E, Inner, Buffer> Step<P> for Retry<Inner, Buffer>
-where
-  Buffer: Buf<P>,
-  P: PlatformTypes,
-  E: super::Error,
-  Inner: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>,
+  where Buffer: Buf<P>,
+        P: PlatformTypes,
+        E: super::Error,
+        Inner: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>
 {
   type PollReq = Addrd<Req<P>>;
   type PollResp = Addrd<Resp<P>>;
@@ -428,11 +380,10 @@ where
     &self.inner
   }
 
-  fn poll_req(
-    &self,
-    snap: &Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-  ) -> StepOutput<Self::PollReq, Self::Error> {
+  fn poll_req(&self,
+              snap: &Snapshot<P>,
+              effects: &mut <P as PlatformTypes>::Effects)
+              -> StepOutput<Self::PollReq, Self::Error> {
     // SERVER FLOW:
     //  * CON responses WILL     be retried
     //  * NON responses WILL NOT be retried
@@ -440,47 +391,43 @@ where
     //  * RESET         WILL NOT be retried
     _try!(Result; self.buf.map_mut(|b| b.attempt_all::<Inner::Error>(snap.time, effects)));
 
-    let req = self
-      .inner
-      .poll_req(snap, effects)
-      .map(|r| r.map_err(|nb| nb.map(Error::Inner)));
+    let req = self.inner
+                  .poll_req(snap, effects)
+                  .map(|r| r.map_err(|nb| nb.map(Error::Inner)));
     let req = _try!(Option<nb::Result>; req);
     _try!(Result; self.buf.map_mut(|b| b.maybe_seen_response::<Inner::Error>(snap.time, effects, req.as_ref().map(|r| r.as_ref()))));
     Some(Ok(req))
   }
 
-  fn poll_resp(
-    &self,
-    snap: &Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-    token: toad_msg::Token,
-    addr: no_std_net::SocketAddr,
-  ) -> StepOutput<Self::PollResp, Self::Error> {
+  fn poll_resp(&self,
+               snap: &Snapshot<P>,
+               effects: &mut <P as PlatformTypes>::Effects,
+               token: toad_msg::Token,
+               addr: no_std_net::SocketAddr)
+               -> StepOutput<Self::PollResp, Self::Error> {
     // CLIENT FLOW:
     //  * CON requests WILL     be retried
     //  * NON requests WILL     be retried
     //  * RESET        WILL NOT be retried
     _try!(Result; self.buf.map_mut(|b| b.attempt_all::<Inner::Error>(snap.time, effects)));
 
-    let resp = self
-      .inner
-      .poll_resp(snap, effects, token, addr)
-      .map(|r| r.map_err(|nb| nb.map(Error::Inner)));
+    let resp =
+      self.inner
+          .poll_resp(snap, effects, token, addr)
+          .map(|r| r.map_err(|nb| nb.map(Error::Inner)));
     let resp = _try!(Option<nb::Result>; resp);
     _try!(Result; self.buf.map_mut(|b| b.maybe_seen_response::<Inner::Error>(snap.time, effects, resp.as_ref().map(|r| r.as_ref()))));
     Some(Ok(resp))
   }
 
-  fn on_message_sent(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effects: &mut P::Effects,
-    msg: &Addrd<platform::Message<P>>,
-  ) -> Result<(), Self::Error> {
+  fn on_message_sent(&self,
+                     snap: &platform::Snapshot<P>,
+                     effects: &mut P::Effects,
+                     msg: &Addrd<platform::Message<P>>)
+                     -> Result<(), Self::Error> {
     self.inner.on_message_sent(snap, effects, msg)?;
-    self
-      .buf
-      .map_mut(|b| b.store_retryables(snap.time, effects, msg, snap.config))
+    self.buf
+        .map_mut(|b| b.store_retryables(snap.time, effects, msg, snap.config))
   }
 }
 
@@ -499,38 +446,27 @@ mod tests {
   type Retry<S> = super::Retry<S, Vec<(State, Addrd<platform::Message<P>>)>>;
 
   fn snap_time(config: Config, time: u64) -> test::Snapshot {
-    test::Snapshot {
-      config,
-      recvd_dgram: Some(Addrd(tinyvec::array_vec!(1), test::dummy_addr())),
-      time: ClockMock::instant(time * 1000),
-    }
+    test::Snapshot { config,
+                     recvd_dgram: Some(Addrd(tinyvec::array_vec!(1), test::dummy_addr())),
+                     time: ClockMock::instant(time * 1000) }
   }
 
   fn config(con_delay: u64, sec_delay: u64) -> Config {
     let con_delay = Milliseconds(con_delay);
     let sec_delay = Milliseconds(sec_delay);
-    let strategy_acked_con_or_non = Strategy::Delay {
-      min: sec_delay,
-      max: sec_delay,
-    };
-    Config {
-      msg: config::Msg {
-        con: config::Con {
-          unacked_retry_strategy: Strategy::Delay {
-            min: con_delay,
-            max: con_delay,
-          },
-          acked_retry_strategy: strategy_acked_con_or_non,
-          ..Default::default()
-        },
-        non: config::Non {
-          retry_strategy: strategy_acked_con_or_non,
-          ..Default::default()
-        },
-        ..Default::default()
-      },
-      ..Default::default()
-    }
+    let strategy_acked_con_or_non = Strategy::Delay { min: sec_delay,
+                                                      max: sec_delay };
+    Config { msg: config::Msg { con: config::Con { unacked_retry_strategy:
+                                                     Strategy::Delay { min: con_delay,
+                                                                       max: con_delay },
+                                                   acked_retry_strategy:
+                                                     strategy_acked_con_or_non,
+                                                   ..Default::default() },
+                                non: config::Non { retry_strategy:
+                                                     strategy_acked_con_or_non,
+                                                   ..Default::default() },
+                                ..Default::default() },
+             ..Default::default() }
   }
 
   type InnerPollReq = Addrd<test::Req>;
@@ -577,22 +513,22 @@ mod tests {
     let token = Token(array_vec![1, 2, 3]);
     let token: &'static Token = unsafe { core::mem::transmute::<_, _>(&token) };
     s.inner()
-      .set_poll_resp(|_, Snapshot { time, .. }, _, _, _| {
-        let time: u64 = time.duration_since_epoch().0;
+     .set_poll_resp(|_, Snapshot { time, .. }, _, _, _| {
+       let time: u64 = time.duration_since_epoch().0;
 
-        let mut rep = test::msg!(ACK EMPTY x.x.x.x:0000);
-        rep.as_mut().token = *token;
+       let mut rep = test::msg!(ACK EMPTY x.x.x.x:0000);
+       rep.as_mut().token = *token;
 
-        match time {
-          | 350 => Some(Ok(rep.map(Resp::from))),
-          | 850 => {
-            rep.as_mut().ty = Type::Non;
-            rep.as_mut().code = Code::new(2, 4);
-            Some(Ok(rep.map(Resp::from)))
-          },
-          | _ => None,
-        }
-      });
+       match time {
+         | 350 => Some(Ok(rep.map(Resp::from))),
+         | 850 => {
+           rep.as_mut().ty = Type::Non;
+           rep.as_mut().code = Code::new(2, 4);
+           Some(Ok(rep.map(Resp::from)))
+         },
+         | _ => None,
+       }
+     });
     let cfg = config(200, 400);
     let mut effs = Vec::<test::Effect>::new();
     macro_rules! sent {
@@ -615,80 +551,64 @@ mod tests {
     req.as_mut().token = *token;
 
     s.on_message_sent(&snap_time(cfg, 50), &mut effs, &req)
-      .unwrap();
+     .unwrap();
 
-    s.poll_resp(
-      &snap_time(cfg, 150),
-      &mut effs,
-      req.data().token,
-      req.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 150),
+                &mut effs,
+                req.data().token,
+                req.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 0);
 
-    s.poll_resp(
-      &snap_time(cfg, 250),
-      &mut effs,
-      req.data().token,
-      req.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 250),
+                &mut effs,
+                req.data().token,
+                req.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 1);
 
-    let ack = s
-      .poll_resp(
-        &snap_time(cfg, 350),
-        &mut effs,
-        req.data().token,
-        req.addr(),
-      )
-      .unwrap()
-      .unwrap();
+    let ack = s.poll_resp(&snap_time(cfg, 350),
+                          &mut effs,
+                          req.data().token,
+                          req.addr())
+               .unwrap()
+               .unwrap();
     assert_eq!(ack.data().msg().ty, Type::Ack);
     assert_eq!(sent!().len(), 1);
 
-    s.poll_resp(
-      &snap_time(cfg, 550),
-      &mut effs,
-      req.data().token,
-      req.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 550),
+                &mut effs,
+                req.data().token,
+                req.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 1);
 
-    s.poll_resp(
-      &snap_time(cfg, 750),
-      &mut effs,
-      req.data().token,
-      req.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 750),
+                &mut effs,
+                req.data().token,
+                req.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 2);
 
-    let rep = s
-      .poll_resp(
-        &snap_time(cfg, 850),
-        &mut effs,
-        req.data().token,
-        req.addr(),
-      )
-      .unwrap()
-      .unwrap();
+    let rep = s.poll_resp(&snap_time(cfg, 850),
+                          &mut effs,
+                          req.data().token,
+                          req.addr())
+               .unwrap()
+               .unwrap();
     assert_eq!(rep.data().msg().ty, Type::Non);
     assert_eq!(sent!().len(), 2);
 
-    s.poll_resp(
-      &snap_time(cfg, 10_000),
-      &mut effs,
-      req.data().token,
-      req.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 10_000),
+                &mut effs,
+                req.data().token,
+                req.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 2);
   }
 
@@ -714,28 +634,28 @@ mod tests {
     let token_c: &'static Token = unsafe { core::mem::transmute::<_, _>(&token_c) };
 
     s.inner()
-      .set_poll_resp(|_, Snapshot { time, .. }, _, token, _| {
-        let time: u64 = time.duration_since_epoch().0;
+     .set_poll_resp(|_, Snapshot { time, .. }, _, token, _| {
+       let time: u64 = time.duration_since_epoch().0;
 
-        let mut rst = test::msg!(RESET x.x.x.x:0000);
-        rst.as_mut().token = token;
+       let mut rst = test::msg!(RESET x.x.x.x:0000);
+       rst.as_mut().token = token;
 
-        match time {
-          | 150 => Some(Ok(rst.map(Resp::from))),
-          | _ => None,
-        }
-      })
-      .set_poll_req(|_, Snapshot { time, .. }, _| {
-        let time: u64 = time.duration_since_epoch().0;
+       match time {
+         | 150 => Some(Ok(rst.map(Resp::from))),
+         | _ => None,
+       }
+     })
+     .set_poll_req(|_, Snapshot { time, .. }, _| {
+       let time: u64 = time.duration_since_epoch().0;
 
-        let mut rst = test::msg!(RESET x.x.x.x:0000);
-        rst.as_mut().token = *token_c;
+       let mut rst = test::msg!(RESET x.x.x.x:0000);
+       rst.as_mut().token = *token_c;
 
-        match time {
-          | 150 => Some(Ok(rst.map(Req::from))),
-          | _ => None,
-        }
-      });
+       match time {
+         | 150 => Some(Ok(rst.map(Req::from))),
+         | _ => None,
+       }
+     });
     let cfg = config(200, 400);
     let mut effs = Vec::<test::Effect>::new();
     macro_rules! sent {
@@ -764,42 +684,39 @@ mod tests {
     con_rep.as_mut().token = *token_c;
 
     s.on_message_sent(&snap_time(cfg, 50), &mut effs, &con_rep)
-      .unwrap();
+     .unwrap();
     s.on_message_sent(&snap_time(cfg, 50), &mut effs, &con_req)
-      .unwrap();
+     .unwrap();
     s.on_message_sent(&snap_time(cfg, 50), &mut effs, &non_req)
-      .unwrap();
+     .unwrap();
 
-    let rep = s
-      .poll_resp(&snap_time(cfg, 150), &mut effs, *token_a, con_req.addr())
-      .unwrap()
-      .unwrap();
+    let rep = s.poll_resp(&snap_time(cfg, 150), &mut effs, *token_a, con_req.addr())
+               .unwrap()
+               .unwrap();
     assert_eq!(sent!().len(), 0);
     assert_eq!(rep.data().msg().ty, Type::Reset);
 
-    let rep = s
-      .poll_resp(&snap_time(cfg, 150), &mut effs, *token_b, con_req.addr())
-      .unwrap()
-      .unwrap();
+    let rep = s.poll_resp(&snap_time(cfg, 150), &mut effs, *token_b, con_req.addr())
+               .unwrap()
+               .unwrap();
     assert_eq!(sent!().len(), 0);
     assert_eq!(rep.data().msg().ty, Type::Reset);
 
-    let req = s
-      .poll_req(&snap_time(cfg, 150), &mut effs)
-      .unwrap()
-      .unwrap();
+    let req = s.poll_req(&snap_time(cfg, 150), &mut effs)
+               .unwrap()
+               .unwrap();
     assert_eq!(sent!().len(), 0);
     assert_eq!(req.data().msg().ty, Type::Reset);
 
     s.poll_resp(&snap_time(cfg, 10_000), &mut effs, *token_a, con_req.addr())
-      .ok_or(())
-      .unwrap_err();
+     .ok_or(())
+     .unwrap_err();
     s.poll_resp(&snap_time(cfg, 10_000), &mut effs, *token_b, con_req.addr())
-      .ok_or(())
-      .unwrap_err();
+     .ok_or(())
+     .unwrap_err();
     s.poll_req(&snap_time(cfg, 10_000), &mut effs)
-      .ok_or(())
-      .unwrap_err();
+     .ok_or(())
+     .unwrap_err();
 
     assert_eq!(sent!().len(), 0);
   }
@@ -820,16 +737,16 @@ mod tests {
     let token = Token(array_vec![1, 2, 3]);
     let token: &'static Token = unsafe { core::mem::transmute::<_, _>(&token) };
     s.inner().set_poll_req(|_, Snapshot { time, .. }, _| {
-      let time: u64 = time.duration_since_epoch().0;
+               let time: u64 = time.duration_since_epoch().0;
 
-      let mut ack = test::msg!(ACK EMPTY x.x.x.x:0000);
-      ack.as_mut().token = *token;
+               let mut ack = test::msg!(ACK EMPTY x.x.x.x:0000);
+               ack.as_mut().token = *token;
 
-      match time {
-        | 350 => Some(Ok(ack.map(Req::from))),
-        | _ => None,
-      }
-    });
+               match time {
+                 | 350 => Some(Ok(ack.map(Req::from))),
+                 | _ => None,
+               }
+             });
     let cfg = config(200, 400);
     let mut effs = Vec::<test::Effect>::new();
     macro_rules! sent {
@@ -852,28 +769,27 @@ mod tests {
     rep.as_mut().token = *token;
 
     s.on_message_sent(&snap_time(cfg, 50), &mut effs, &rep)
-      .unwrap();
+     .unwrap();
 
     s.poll_req(&snap_time(cfg, 150), &mut effs)
-      .ok_or(())
-      .unwrap_err();
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 0);
 
     s.poll_req(&snap_time(cfg, 250), &mut effs)
-      .ok_or(())
-      .unwrap_err();
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 1);
 
-    let ack = s
-      .poll_req(&snap_time(cfg, 350), &mut effs)
-      .unwrap()
-      .unwrap();
+    let ack = s.poll_req(&snap_time(cfg, 350), &mut effs)
+               .unwrap()
+               .unwrap();
     assert_eq!(ack.data().msg().ty, Type::Ack);
     assert_eq!(sent!().len(), 1);
 
     s.poll_req(&snap_time(cfg, 10_000), &mut effs)
-      .ok_or(())
-      .unwrap_err();
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 1);
   }
 
@@ -892,17 +808,17 @@ mod tests {
     let token = Token(array_vec![1, 2, 3]);
     let token: &'static Token = unsafe { core::mem::transmute::<_, _>(&token) };
     s.inner()
-      .set_poll_resp(|_, Snapshot { time, .. }, _, _, _| {
-        let time: u64 = time.duration_since_epoch().0;
+     .set_poll_resp(|_, Snapshot { time, .. }, _, _, _| {
+       let time: u64 = time.duration_since_epoch().0;
 
-        let mut rep = test::msg!(NON {2 . 04} x.x.x.x:0000);
-        rep.as_mut().token = *token;
+       let mut rep = test::msg!(NON {2 . 04} x.x.x.x:0000);
+       rep.as_mut().token = *token;
 
-        match time {
-          | 350 => Some(Ok(rep.map(Resp::from))),
-          | _ => None,
-        }
-      });
+       match time {
+         | 350 => Some(Ok(rep.map(Resp::from))),
+         | _ => None,
+       }
+     });
     let cfg = config(200, 200);
     let mut effs = Vec::<test::Effect>::new();
     macro_rules! sent {
@@ -925,48 +841,39 @@ mod tests {
     req.as_mut().token = *token;
 
     s.on_message_sent(&snap_time(cfg, 50), &mut effs, &req)
-      .unwrap();
+     .unwrap();
 
-    s.poll_resp(
-      &snap_time(cfg, 150),
-      &mut effs,
-      req.data().token,
-      req.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 150),
+                &mut effs,
+                req.data().token,
+                req.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 0);
 
-    s.poll_resp(
-      &snap_time(cfg, 250),
-      &mut effs,
-      req.data().token,
-      req.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 250),
+                &mut effs,
+                req.data().token,
+                req.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 1);
 
-    let rep = s
-      .poll_resp(
-        &snap_time(cfg, 350),
-        &mut effs,
-        req.data().token,
-        req.addr(),
-      )
-      .unwrap()
-      .unwrap();
+    let rep = s.poll_resp(&snap_time(cfg, 350),
+                          &mut effs,
+                          req.data().token,
+                          req.addr())
+               .unwrap()
+               .unwrap();
     assert_eq!(rep.data().msg().ty, Type::Non);
     assert_eq!(sent!().len(), 1);
 
-    s.poll_resp(
-      &snap_time(cfg, 10_000),
-      &mut effs,
-      req.data().token,
-      req.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 10_000),
+                &mut effs,
+                req.data().token,
+                req.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 1);
   }
 
@@ -1005,21 +912,19 @@ mod tests {
     ack.as_mut().token = *token;
 
     s.on_message_sent(&snap_time(cfg, 50), &mut effs, &ack)
-      .unwrap();
+     .unwrap();
 
-    s.poll_resp(
-      &snap_time(cfg, 10_000),
-      &mut effs,
-      ack.data().token,
-      ack.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 10_000),
+                &mut effs,
+                ack.data().token,
+                ack.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 0);
 
     s.poll_req(&snap_time(cfg, 10_000), &mut effs)
-      .ok_or(())
-      .unwrap_err();
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 0);
   }
 
@@ -1058,21 +963,19 @@ mod tests {
     rep.as_mut().token = *token;
 
     s.on_message_sent(&snap_time(cfg, 50), &mut effs, &rep)
-      .unwrap();
+     .unwrap();
 
-    s.poll_resp(
-      &snap_time(cfg, 10_000),
-      &mut effs,
-      rep.data().token,
-      rep.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 10_000),
+                &mut effs,
+                rep.data().token,
+                rep.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 0);
 
     s.poll_req(&snap_time(cfg, 10_000), &mut effs)
-      .ok_or(())
-      .unwrap_err();
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 0);
   }
 
@@ -1111,21 +1014,19 @@ mod tests {
     rst.as_mut().token = *token;
 
     s.on_message_sent(&snap_time(cfg, 50), &mut effs, &rst)
-      .unwrap();
+     .unwrap();
 
-    s.poll_resp(
-      &snap_time(cfg, 10_000),
-      &mut effs,
-      rst.data().token,
-      rst.addr(),
-    )
-    .ok_or(())
-    .unwrap_err();
+    s.poll_resp(&snap_time(cfg, 10_000),
+                &mut effs,
+                rst.data().token,
+                rst.addr())
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 0);
 
     s.poll_req(&snap_time(cfg, 10_000), &mut effs)
-      .ok_or(())
-      .unwrap_err();
+     .ok_or(())
+     .unwrap_err();
     assert_eq!(sent!().len(), 0);
   }
 }

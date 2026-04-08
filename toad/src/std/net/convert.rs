@@ -49,21 +49,17 @@ pub(crate) mod std {
 
   impl From<SockAddrv4> for no_std::SockAddrv4 {
     fn from(other: SockAddrv4) -> no_std::SockAddrv4 {
-      no_std::SockAddrv4(no_std_net::SocketAddrV4::new(
-        no_std::Ipv4::from(Ipv4(*other.0.ip())).0,
-        other.0.port(),
-      ))
+      no_std::SockAddrv4(no_std_net::SocketAddrV4::new(no_std::Ipv4::from(Ipv4(*other.0.ip())).0,
+                                                       other.0.port()))
     }
   }
 
   impl From<SockAddrv6> for no_std::SockAddrv6 {
     fn from(other: SockAddrv6) -> no_std::SockAddrv6 {
-      no_std::SockAddrv6(no_std_net::SocketAddrV6::new(
-        no_std::Ipv6::from(Ipv6(*other.0.ip())).0,
-        other.0.port(),
-        other.0.flowinfo(),
-        other.0.scope_id(),
-      ))
+      no_std::SockAddrv6(no_std_net::SocketAddrV6::new(no_std::Ipv6::from(Ipv6(*other.0.ip())).0,
+                                                       other.0.port(),
+                                                       other.0.flowinfo(),
+                                                       other.0.scope_id()))
     }
   }
 
@@ -134,21 +130,17 @@ pub(crate) mod no_std {
 
   impl From<SockAddrv4> for yes_std::SockAddrv4 {
     fn from(other: SockAddrv4) -> yes_std::SockAddrv4 {
-      yes_std::SockAddrv4(std::net::SocketAddrV4::new(
-        yes_std::Ipv4::from(Ipv4(*other.0.ip())).0,
-        other.0.port(),
-      ))
+      yes_std::SockAddrv4(std::net::SocketAddrV4::new(yes_std::Ipv4::from(Ipv4(*other.0.ip())).0,
+                                                      other.0.port()))
     }
   }
 
   impl From<SockAddrv6> for yes_std::SockAddrv6 {
     fn from(other: SockAddrv6) -> yes_std::SockAddrv6 {
-      yes_std::SockAddrv6(std::net::SocketAddrV6::new(
-        yes_std::Ipv6::from(Ipv6(*other.0.ip())).0,
-        other.0.port(),
-        other.0.flowinfo(),
-        other.0.scope_id(),
-      ))
+      yes_std::SockAddrv6(std::net::SocketAddrV6::new(yes_std::Ipv6::from(Ipv6(*other.0.ip())).0,
+                                                      other.0.port(),
+                                                      other.0.flowinfo(),
+                                                      other.0.scope_id()))
     }
   }
   impl From<Ip> for yes_std::Ip {

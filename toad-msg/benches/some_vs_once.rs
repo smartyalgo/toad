@@ -2,11 +2,11 @@ use criterion::{criterion_group, criterion_main, Criterion};
 
 fn some_vs_once(c: &mut Criterion) {
   c.bench_function("core::iter::once", |b| {
-    b.iter(|| std::iter::once(0u8).collect::<Vec<_>>())
-  });
+     b.iter(|| std::iter::once(0u8).collect::<Vec<_>>())
+   });
   c.bench_function("Option::into_iter", |b| {
-    b.iter(|| Some(0u8).into_iter().collect::<Vec<_>>())
-  });
+     b.iter(|| Some(0u8).into_iter().collect::<Vec<_>>())
+   });
 }
 
 criterion_group! {

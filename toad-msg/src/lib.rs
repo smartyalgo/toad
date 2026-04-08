@@ -125,26 +125,20 @@ pub(crate) fn test_msg() -> (alloc::Message, Vec<u8>) {
   let content_format: &[u8] = b"application/json";
   let options: [&[u8]; 2] = [&[0b_1100_1101u8, 0b00000011u8], content_format];
   let payload: [&[u8]; 2] = [&[0b1111_1111_u8], b"hello, world!"];
-  let bytes = [
-    header.as_ref(),
-    token.as_ref(),
-    options.concat().as_ref(),
-    payload.concat().as_ref(),
-  ]
-  .concat();
+  let bytes = [header.as_ref(),
+               token.as_ref(),
+               options.concat().as_ref(),
+               payload.concat().as_ref()].concat();
 
-  let msg = alloc::Message {
-    id: Id(1),
-    ty: Type::Con,
-    ver: Version(1),
-    token: Token(tinyvec::array_vec!([u8; 8] => 254)),
-    opts: BTreeMap::from([(OptNumber(12), vec![OptValue(content_format.to_vec())])]),
-    code: Code {
-      class: 2,
-      detail: 5,
-    },
-    payload: Payload(b"hello, world!".to_vec()),
-  };
+  let msg = alloc::Message { id: Id(1),
+                             ty: Type::Con,
+                             ver: Version(1),
+                             token: Token(tinyvec::array_vec!([u8; 8] => 254)),
+                             opts: BTreeMap::from([(OptNumber(12),
+                                                    vec![OptValue(content_format.to_vec())])]),
+                             code: Code { class: 2,
+                                          detail: 5 },
+                             payload: Payload(b"hello, world!".to_vec()) };
   (msg, bytes)
 }
 
@@ -165,17 +159,13 @@ pub(crate) mod tests {
   macro_rules! assert_eqb_iter {
     ($actual:expr, $expected:expr) => {
       if $actual.iter().ne($expected.iter()) {
-        panic!(
-          "expected {:?} to equal {:?}",
-          $actual
-            .into_iter()
-            .map(|b| format!("{:08b}", b))
-            .collect::<Vec<_>>(),
-          $expected
-            .into_iter()
-            .map(|b| format!("{:08b}", b))
-            .collect::<Vec<_>>()
-        )
+        panic!("expected {:?} to equal {:?}",
+               $actual.into_iter()
+                      .map(|b| format!("{:08b}", b))
+                      .collect::<Vec<_>>(),
+               $expected.into_iter()
+                        .map(|b| format!("{:08b}", b))
+                        .collect::<Vec<_>>())
       }
     };
   }

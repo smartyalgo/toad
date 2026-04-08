@@ -62,16 +62,15 @@ impl<E: super::Error> super::Error for Error<E> {}
 
 macro_rules! common {
   ($dgram:expr) => {{
-    $dgram
-      .map(|d| {
-        d.as_ref()
-          .fold(|dgram, addr| {
-            platform::Message::<P>::try_from_bytes(dgram).map(|dgram| Addrd(dgram, addr))
+    $dgram.map(|d| {
+            d.as_ref()
+             .fold(|dgram, addr| {
+               platform::Message::<P>::try_from_bytes(dgram).map(|dgram| Addrd(dgram, addr))
+             })
+             .map_err(Error::Parsing)
+             .map_err(nb::Error::Other)
           })
-          .map_err(Error::Parsing)
-          .map_err(nb::Error::Other)
-      })
-      .unwrap_or(Err(nb::Error::WouldBlock))
+          .unwrap_or(Err(nb::Error::WouldBlock))
   }};
 }
 
@@ -85,22 +84,20 @@ impl<Inner: Step<P>, P: PlatformTypes> Step<P> for Parse<Inner> {
     &self.0
   }
 
-  fn poll_req(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-  ) -> StepOutput<Self::PollReq, Error<Inner::Error>> {
+  fn poll_req(&self,
+              snap: &crate::platform::Snapshot<P>,
+              effects: &mut <P as PlatformTypes>::Effects)
+              -> StepOutput<Self::PollReq, Error<Inner::Error>> {
     exec_inner_step!(self.0.poll_req(snap, effects), Error::Inner);
     Some(common!(snap.recvd_dgram.as_ref()).map(|addrd| addrd.map(Req::from)))
   }
 
-  fn poll_resp(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-    token: toad_msg::Token,
-    addr: no_std_net::SocketAddr,
-  ) -> StepOutput<Self::PollResp, Error<Inner::Error>> {
+  fn poll_resp(&self,
+               snap: &crate::platform::Snapshot<P>,
+               effects: &mut <P as PlatformTypes>::Effects,
+               token: toad_msg::Token,
+               addr: no_std_net::SocketAddr)
+               -> StepOutput<Self::PollResp, Error<Inner::Error>> {
     exec_inner_step!(self.0.poll_resp(snap, effects, token, addr), Error::Inner);
     Some(common!(snap.recvd_dgram.as_ref()).map(|addrd| addrd.map(Resp::from)))
   }
@@ -119,32 +116,26 @@ mod test {
 
   fn test_msg(
     ty: Type,
-    code: Code,
-  ) -> (
-    Addrd<<crate::test::SockMock as Socket>::Dgram>,
-    Addrd<Req<crate::test::Platform>>,
-    Addrd<Resp<crate::test::Platform>>,
-  ) {
+    code: Code)
+    -> (Addrd<<crate::test::SockMock as Socket>::Dgram>,
+        Addrd<Req<crate::test::Platform>>,
+        Addrd<Resp<crate::test::Platform>>) {
     use toad_msg::*;
 
     type Msg = platform::Message<crate::test::Platform>;
-    let msg = Msg {
-      id: Id(1),
-      ty,
-      ver: Default::default(),
-      token: Token(Default::default()),
-      code,
-      opts: Default::default(),
-      payload: Payload(Default::default()),
-    };
+    let msg = Msg { id: Id(1),
+                    ty,
+                    ver: Default::default(),
+                    token: Token(Default::default()),
+                    code,
+                    opts: Default::default(),
+                    payload: Payload(Default::default()) };
 
     let addr = crate::test::dummy_addr();
 
-    (
-      Addrd(msg.clone().try_into_bytes().unwrap(), addr),
-      Addrd(Req::<_>::from(msg.clone()), addr),
-      Addrd(Resp::<_>::from(msg), addr),
-    )
+    (Addrd(msg.clone().try_into_bytes().unwrap(), addr),
+     Addrd(Req::<_>::from(msg.clone()), addr),
+     Addrd(Resp::<_>::from(msg), addr))
   }
 
   test::test_step!(

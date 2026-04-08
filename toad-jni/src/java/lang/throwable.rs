@@ -25,9 +25,8 @@ impl Throwable {
 
   /// `java.lang.Throwable.getCause()`
   pub fn cause(&self, e: &mut java::Env) -> Option<Throwable> {
-    java::Method::<Self, fn() -> Nullable<Throwable>>::new("getCause")
-      .invoke(e, self)
-      .into_option(e)
+    java::Method::<Self, fn() -> Nullable<Throwable>>::new("getCause").invoke(e, self)
+                                                                      .into_option(e)
   }
 
   /// Recursively travel up the `Throwable` cause chain until one has no inner exception
@@ -56,14 +55,12 @@ impl core::fmt::Debug for Throwable {
     let mut e = java::env();
     let e = &mut e;
     let traces = self.stack_trace(e);
-    let traces = traces
-      .into_iter()
-      .map(|o| o.downcast(e).to_string(e))
-      .collect::<Vec<_>>();
+    let traces = traces.into_iter()
+                       .map(|o| o.downcast(e).to_string(e))
+                       .collect::<Vec<_>>();
     write!(f, "{}\n", self.downcast_ref(e).to_string(e))?;
-    self
-      .cause_iter(e)
-      .try_for_each(|cause| write!(f, "    {}\n", cause.downcast_ref(e).to_string(e)))?;
+    self.cause_iter(e)
+        .try_for_each(|cause| write!(f, "    {}\n", cause.downcast_ref(e).to_string(e)))?;
     write!(f, "\nstacktrace:\n{:#?}", traces)?;
 
     Ok(())
@@ -83,18 +80,17 @@ mod tests {
     let foo = IOException::new_caused_by(e, "foo", bar).to_throwable(e);
 
     assert_eq!(
-      format!("{:?}", foo),
-      format!(
-        r#"
+               format!("{:?}", foo),
+               format!(
+      r#"
 java.io.IOException: foo
     java.io.IOException: bar
     java.io.IOException: baz
 
 stacktrace:
 {:#?}"#,
-        Vec::<String>::new()
-      )
-      .trim_start()
+      Vec::<String>::new()
+    ).trim_start()
     );
   }
 }

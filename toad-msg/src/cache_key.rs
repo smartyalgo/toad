@@ -32,16 +32,15 @@ impl CacheKey for DefaultCacheKey {
   }
 
   fn add_cache_key<P, O>(&mut self, msg: &Message<P, O>)
-  where
-    P: Array<Item = u8> + AppendCopy<u8>,
-    O: OptionMap,
+    where P: Array<Item = u8> + AppendCopy<u8>,
+          O: OptionMap
   {
     msg.code.hash(&mut self.0);
     msg.opts.iter().for_each(|(num, vals)| {
-      if num.include_in_cache_key() {
-        vals.iter().for_each(|v| v.hash(&mut self.0))
-      }
-    });
+                     if num.include_in_cache_key() {
+                       vals.iter().for_each(|v| v.hash(&mut self.0))
+                     }
+                   });
   }
 }
 
@@ -55,8 +54,7 @@ impl CacheKey for DefaultCacheKey {
 ///
 /// [`DefaultCacheKey`] Provides a default implementation.
 pub trait CacheKey
-where
-  Self: Sized + Debug,
+  where Self: Sized + Debug
 {
   /// Type used to generate hashes
   type Hasher: Hasher;
@@ -70,9 +68,8 @@ where
   ///
   /// Alternately, use [`CacheKey::cache_key`] to go directly to the [`u64`] hash.
   fn add_cache_key<P, O>(&mut self, msg: &Message<P, O>)
-  where
-    P: Array<Item = u8> + AppendCopy<u8>,
-    O: OptionMap;
+    where P: Array<Item = u8> + AppendCopy<u8>,
+          O: OptionMap;
 
   /// Add this message's cache key to the hasher's internal state and yield the [`u64`] hash.
   ///
@@ -98,18 +95,15 @@ where
   /// assert_eq!(ha.hasher().finish(), hb.hasher().finish());
   /// ```
   fn cache_key<P, O>(&mut self, msg: &Message<P, O>) -> u64
-  where
-    P: Array<Item = u8> + AppendCopy<u8>,
-    O: OptionMap,
+    where P: Array<Item = u8> + AppendCopy<u8>,
+          O: OptionMap
   {
     self.add_cache_key(msg);
     self.hasher().finish()
   }
 }
 
-impl<T> CacheKey for &mut T
-where
-  T: CacheKey,
+impl<T> CacheKey for &mut T where T: CacheKey
 {
   type Hasher = T::Hasher;
 
@@ -118,9 +112,8 @@ where
   }
 
   fn add_cache_key<P, O>(&mut self, msg: &Message<P, O>)
-  where
-    P: Array<Item = u8> + AppendCopy<u8>,
-    O: OptionMap,
+    where P: Array<Item = u8> + AppendCopy<u8>,
+          O: OptionMap
   {
     <T as CacheKey>::add_cache_key(self, msg)
   }
@@ -136,8 +129,7 @@ mod test {
   #[test]
   pub fn cache_key() {
     fn req<F>(stuff: F) -> u64
-    where
-      F: FnOnce(&mut Message),
+      where F: FnOnce(&mut Message)
     {
       let mut req = Message::new(Type::Con, Code::GET, Id(1), Token(Default::default()));
       stuff(&mut req);
@@ -147,52 +139,42 @@ mod test {
       h.hasher().finish()
     }
 
-    assert_ne!(
-      req(|r| {
-        r.set_path("a/b/c").ok();
-      }),
-      req(|_| {})
-    );
-    assert_eq!(
-      req(|r| {
-        r.set_path("a/b/c").ok();
-      }),
-      req(|r| {
-        r.set_path("a/b/c").ok();
-      })
-    );
-    assert_ne!(
-      req(|r| {
-        r.set_path("a/b/c").ok();
-        r.add_query("filter[temp](less_than)=123").ok();
-      }),
-      req(|r| {
-        r.set_path("a/b/c").ok();
-      })
-    );
-    assert_ne!(
-      req(|r| {
-        r.set_path("a/b/c").ok();
-        r.add_query("filter[temp](less_than)=123").ok();
-        r.set_accept(ContentFormat::Json).ok();
-      }),
-      req(|r| {
-        r.set_path("a/b/c").ok();
-        r.add_query("filter[temp](less_than)=123").ok();
-        r.set_accept(ContentFormat::Text).ok();
-      })
-    );
-    assert_eq!(
-      req(|r| {
-        r.set_path("a/b/c").ok();
-        r.add_query("filter[temp](less_than)=123").ok();
-        r.set_accept(ContentFormat::Json).ok();
-      }),
-      req(|r| {
-        r.set_path("a/b/c").ok();
-        r.add_query("filter[temp](less_than)=123").ok();
-        r.set_accept(ContentFormat::Json).ok();
-      })
-    );
+    assert_ne!(req(|r| {
+                 r.set_path("a/b/c").ok();
+               }),
+               req(|_| {}));
+    assert_eq!(req(|r| {
+                 r.set_path("a/b/c").ok();
+               }),
+               req(|r| {
+                 r.set_path("a/b/c").ok();
+               }));
+    assert_ne!(req(|r| {
+                 r.set_path("a/b/c").ok();
+                 r.add_query("filter[temp](less_than)=123").ok();
+               }),
+               req(|r| {
+                 r.set_path("a/b/c").ok();
+               }));
+    assert_ne!(req(|r| {
+                 r.set_path("a/b/c").ok();
+                 r.add_query("filter[temp](less_than)=123").ok();
+                 r.set_accept(ContentFormat::Json).ok();
+               }),
+               req(|r| {
+                 r.set_path("a/b/c").ok();
+                 r.add_query("filter[temp](less_than)=123").ok();
+                 r.set_accept(ContentFormat::Text).ok();
+               }));
+    assert_eq!(req(|r| {
+                 r.set_path("a/b/c").ok();
+                 r.add_query("filter[temp](less_than)=123").ok();
+                 r.set_accept(ContentFormat::Json).ok();
+               }),
+               req(|r| {
+                 r.set_path("a/b/c").ok();
+                 r.add_query("filter[temp](less_than)=123").ok();
+                 r.set_accept(ContentFormat::Json).ok();
+               }));
   }
 }

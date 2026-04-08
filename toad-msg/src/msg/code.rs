@@ -78,12 +78,10 @@ impl Code {
   /// ```
   pub fn to_human(&self) -> [char; 4] {
     let to_char = |d: u8| char::from_digit(d.into(), 10).unwrap();
-    [
-      to_char(self.class),
-      '.',
-      to_char(self.detail / 10),
-      to_char(self.detail % 10),
-    ]
+    [to_char(self.class),
+     '.',
+     to_char(self.detail / 10),
+     to_char(self.detail % 10)]
   }
 
   /// Get whether this code is for a request, response, or empty message
@@ -164,21 +162,15 @@ mod tests {
   fn parse_code() {
     let byte = 0b01000101_u8;
     let code = Code::from(byte);
-    assert_eq!(
-      code,
-      Code {
-        class: 2,
-        detail: 5
-      }
-    )
+    assert_eq!(code,
+               Code { class: 2,
+                      detail: 5 })
   }
 
   #[test]
   fn serialize_code() {
-    let code = Code {
-      class: 2,
-      detail: 5,
-    };
+    let code = Code { class: 2,
+                      detail: 5 };
     let actual: u8 = code.into();
     let expected = 0b01000101_u8;
     assert_eqb!(actual, expected)

@@ -82,9 +82,7 @@ impl<const N: usize> String<N> {
   pub fn resize<const M: usize>(&mut self) -> String<M> {
     let mut bytes = self.0.unwrap();
     bytes.truncate(M);
-    String(Writable::from(
-      self.as_writable().drain(..).collect::<ArrayVec<[u8; M]>>(),
-    ))
+    String(Writable::from(self.as_writable().drain(..).collect::<ArrayVec<[u8; M]>>()))
   }
 
   /// Alias for [`AsRef`]
@@ -283,9 +281,8 @@ impl<const N: usize> String<N> {
   pub fn push(&mut self, ch: char) {
     match ch.len_utf8() {
       | 1 => self.0.push(ch as u8),
-      | _ => self
-        .0
-        .extend_from_slice(ch.encode_utf8(&mut [0; 4]).as_bytes()),
+      | _ => self.0
+                 .extend_from_slice(ch.encode_utf8(&mut [0; 4]).as_bytes()),
     }
   }
 

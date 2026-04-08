@@ -26,20 +26,18 @@ impl DatagramChannel {
 
   /// `java.nio.channels.DatagramChannel.open`
   pub fn open(e: &mut java::Env, proto: StandardProtocolFamily) -> Result<Self, Throwable> {
-    static OPEN: java::StaticMethod<
-      DatagramChannel,
-      fn(ProtocolFamily) -> Result<DatagramChannel, Throwable>,
-    > = java::StaticMethod::new("open");
+    static OPEN: java::StaticMethod<DatagramChannel,
+                                      fn(ProtocolFamily) -> Result<DatagramChannel, Throwable>> =
+      java::StaticMethod::new("open");
     let proto = proto.into_protocol_family(e);
     OPEN.invoke(e, proto)
   }
 
   /// `java.nio.channels.DatagramChannel.bind`
   pub fn bind(&self, e: &mut java::Env, addr: InetSocketAddress) -> Result<(), Throwable> {
-    static BIND: java::Method<
-      DatagramChannel,
-      fn(SocketAddress) -> Result<NoUpcast<DatagramChannel>, Throwable>,
-    > = java::Method::new("bind");
+    static BIND: java::Method<DatagramChannel,
+                                fn(SocketAddress) -> Result<NoUpcast<DatagramChannel>, Throwable>> =
+      java::Method::new("bind");
     let addr = addr.as_socket_address(e);
     BIND.invoke(e, self, addr).map(|_| ())
   }
@@ -59,27 +57,20 @@ impl DatagramChannel {
   }
 
   /// `java.nio.channels.DatagramChannel.send(ByteBuffer, SocketAddress)`
-  pub fn send(
-    &self,
-    e: &mut java::Env,
-    buf: &ByteBuffer,
-    dst: &InetSocketAddress,
-  ) -> nb::Result<u32, Throwable> {
+  pub fn send(&self,
+              e: &mut java::Env,
+              buf: &ByteBuffer,
+              dst: &InetSocketAddress)
+              -> nb::Result<u32, Throwable> {
     let dst = dst.as_socket_address(e);
 
-    let (buf, dst) = (
-      buf.downcast_ref(e).to_value(e),
-      dst.downcast_ref(e).to_value(e),
-    );
-    let written = e
-      .call_method(
-        self.0.as_local(),
-        "send",
-        Signature::of::<fn(ByteBuffer, SocketAddress) -> i32>(),
-        &[(&buf).into(), (&dst).into()],
-      )
-      .to_throwable(e)
-      .map(|i| i.i().unwrap() as u32);
+    let (buf, dst) = (buf.downcast_ref(e).to_value(e), dst.downcast_ref(e).to_value(e));
+    let written = e.call_method(self.0.as_local(),
+                                "send",
+                                Signature::of::<fn(ByteBuffer, SocketAddress) -> i32>(),
+                                &[(&buf).into(), (&dst).into()])
+                   .to_throwable(e)
+                   .map(|i| i.i().unwrap() as u32);
 
     if let Ok(0) = written {
       Err(nb::Error::WouldBlock)
@@ -89,28 +80,25 @@ impl DatagramChannel {
   }
 
   /// `java.nio.channels.DatagramChannel.send(ByteBuffer, SocketAddress)`
-  pub fn recv(
-    &self,
-    e: &mut java::Env,
-    buf: &mut ByteBuffer,
-  ) -> nb::Result<(u32, InetSocketAddress), Throwable> {
+  pub fn recv(&self,
+              e: &mut java::Env,
+              buf: &mut ByteBuffer)
+              -> nb::Result<(u32, InetSocketAddress), Throwable> {
     let buf_ = buf.downcast_ref(e).to_value(e);
-    e.call_method(
-      self.0.as_local(),
-      "receive",
-      Signature::of::<fn(ByteBuffer) -> SocketAddress>(),
-      &[(&buf_).into()],
-    )
-    .to_throwable(e)
-    .map_err(nb::Error::Other)
-    .and_then(|jv| {
-      let read = buf.position(e);
-      buf.rewind(e);
-      let addr = Nullable::<SocketAddress>::upcast_value(e, jv);
-      let addr = addr.into_option(e).ok_or(nb::Error::WouldBlock)?;
-      let addr = InetSocketAddress::from_socket_address(e, addr);
-      Ok((read, addr))
-    })
+    e.call_method(self.0.as_local(),
+                  "receive",
+                  Signature::of::<fn(ByteBuffer) -> SocketAddress>(),
+                  &[(&buf_).into()])
+     .to_throwable(e)
+     .map_err(nb::Error::Other)
+     .and_then(|jv| {
+       let read = buf.position(e);
+       buf.rewind(e);
+       let addr = Nullable::<SocketAddress>::upcast_value(e, jv);
+       let addr = addr.into_option(e).ok_or(nb::Error::WouldBlock)?;
+       let addr = InetSocketAddress::from_socket_address(e, addr);
+       Ok((read, addr))
+     })
   }
 }
 
@@ -142,10 +130,8 @@ impl java::Class for PeekableDatagramChannel {
 
 impl From<DatagramChannel> for PeekableDatagramChannel {
   fn from(chan: DatagramChannel) -> Self {
-    Self {
-      chan,
-      peeked: RwLock::new(None),
-    }
+    Self { chan,
+           peeked: RwLock::new(None) }
   }
 }
 
@@ -265,10 +251,8 @@ mod tests {
     let mut e = crate::test::init();
     let e = &mut e;
 
-    let addr = Addr {
-      java: "127.0.0.1:5683".parse().unwrap(),
-      rust: "127.0.0.1:5684".parse().unwrap(),
-    };
+    let addr = Addr { java: "127.0.0.1:5683".parse().unwrap(),
+                      rust: "127.0.0.1:5684".parse().unwrap() };
 
     let rust_sock = <UdpSocket as toad::net::Socket>::bind(addr.rust).unwrap();
     let java_sock = PeekableDatagramChannel::bind(addr.java).unwrap();
@@ -295,10 +279,8 @@ mod tests {
     let mut e = crate::test::init();
     let e = &mut e;
 
-    let addr = Addr {
-      java: "127.0.0.1:5685".parse().unwrap(),
-      rust: "127.0.0.1:5686".parse().unwrap(),
-    };
+    let addr = Addr { java: "127.0.0.1:5685".parse().unwrap(),
+                      rust: "127.0.0.1:5686".parse().unwrap() };
 
     let rust_sock = <UdpSocket as toad::net::Socket>::bind(addr.rust).unwrap();
     let java_sock = <PeekableDatagramChannel as toad::net::Socket>::bind(addr.java).unwrap();
@@ -308,10 +290,7 @@ mod tests {
     let mut recvd = Vec::new();
     recvd.resize(data.len(), 0);
 
-    assert!(matches!(
-      java_sock.peek(&mut recvd),
-      Err(nb::Error::WouldBlock)
-    ));
+    assert!(matches!(java_sock.peek(&mut recvd), Err(nb::Error::WouldBlock)));
 
     rust_sock.send_to(&data, addr.java.to_string()).unwrap();
 
@@ -330,10 +309,7 @@ mod tests {
     assert_eq!(from, addr.rust);
     assert_eq!(recvd, data);
 
-    assert!(matches!(
-      java_sock.peek(&mut recvd),
-      Err(nb::Error::WouldBlock)
-    ));
+    assert!(matches!(java_sock.peek(&mut recvd), Err(nb::Error::WouldBlock)));
   }
 
   #[test]
@@ -346,10 +322,8 @@ mod tests {
     let mut e = crate::test::init();
     let e = &mut e;
 
-    let addr = Addr {
-      java: "127.0.0.1:5688".parse().unwrap(),
-      rust: "127.0.0.1:5689".parse().unwrap(),
-    };
+    let addr = Addr { java: "127.0.0.1:5688".parse().unwrap(),
+                      rust: "127.0.0.1:5689".parse().unwrap() };
 
     let rust_sock = <UdpSocket as toad::net::Socket>::bind(addr.rust).unwrap();
     let java_sock = <PeekableDatagramChannel as toad::net::Socket>::bind(addr.java).unwrap();

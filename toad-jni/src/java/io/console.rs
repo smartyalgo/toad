@@ -5,12 +5,11 @@ pub struct Console(java::lang::Object);
 
 impl Console {
   /// `java.io.Console.printf(String, java.lang.Object...)`
-  pub fn printf(
-    &self,
-    e: &mut java::Env,
-    fmt: impl ToString,
-    args: Vec<java::lang::Object>,
-  ) -> &Self {
+  pub fn printf(&self,
+                e: &mut java::Env,
+                fmt: impl ToString,
+                args: Vec<java::lang::Object>)
+                -> &Self {
     static PRINTF: java::Method<Console, fn(String, Vec<java::lang::Object>) -> NoUpcast<Console>> =
       java::Method::new("printf");
     PRINTF.invoke(e, &self, fmt.to_string(), args);
@@ -18,12 +17,11 @@ impl Console {
   }
 
   /// `java.io.Console.readLine(String, java.lang.Object...)`
-  pub fn readline(
-    &self,
-    e: &mut java::Env,
-    fmt: impl ToString,
-    args: Vec<java::lang::Object>,
-  ) -> String {
+  pub fn readline(&self,
+                  e: &mut java::Env,
+                  fmt: impl ToString,
+                  args: Vec<java::lang::Object>)
+                  -> String {
     static READLINE: java::Method<Console, fn(String, Vec<java::lang::Object>) -> String> =
       java::Method::new("readLine");
     READLINE.invoke(e, &self, fmt.to_string(), args)

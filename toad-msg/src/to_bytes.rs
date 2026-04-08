@@ -65,19 +65,14 @@ impl<PayloadBytes: Array<Item = u8>, Options: OptionMap> TryIntoBytes
 
     if let Some(max) = C::CAPACITY {
       if max < size {
-        return Err(Self::Error::TooLong {
-          capacity: max,
-          size,
-        });
+        return Err(Self::Error::TooLong { capacity: max,
+                                          size });
       }
     }
 
-    let byte1: u8 = Byte1 {
-      tkl: self.token.0.len() as u8,
-      ver: self.ver,
-      ty: self.ty,
-    }
-    .into();
+    let byte1: u8 = Byte1 { tkl: self.token.0.len() as u8,
+                            ver: self.ver,
+                            ty: self.ty }.into();
     let code: u8 = self.code.into();
     let id: [u8; 2] = self.id.into();
     let token: ArrayVec<[u8; 8]> = self.token.0;
@@ -160,17 +155,13 @@ mod tests {
   macro_rules! assert_eqb_iter {
     ($actual:expr, $expected:expr) => {
       if $actual.iter().ne($expected.iter()) {
-        panic!(
-          "expected {:?} to equal {:?}",
-          $actual
-            .into_iter()
-            .map(|b| format!("{:08b}", b))
-            .collect::<Vec<_>>(),
-          $expected
-            .into_iter()
-            .map(|b| format!("{:08b}", b))
-            .collect::<Vec<_>>()
-        )
+        panic!("expected {:?} to equal {:?}",
+               $actual.into_iter()
+                      .map(|b| format!("{:08b}", b))
+                      .collect::<Vec<_>>(),
+               $expected.into_iter()
+                        .map(|b| format!("{:08b}", b))
+                        .collect::<Vec<_>>())
       }
     };
   }
@@ -184,11 +175,9 @@ mod tests {
 
   #[test]
   fn byte_1() {
-    let byte = Byte1 {
-      ver: Version(1),
-      ty: Type::Ack,
-      tkl: 3,
-    };
+    let byte = Byte1 { ver: Version(1),
+                       ty: Type::Ack,
+                       tkl: 3 };
     let actual: u8 = byte.into();
     let expected = 0b_01_10_0011u8;
     assert_eqb!(actual, expected)
@@ -196,10 +185,8 @@ mod tests {
 
   #[test]
   fn code() {
-    let code = Code {
-      class: 2,
-      detail: 5,
-    };
+    let code = Code { class: 2,
+                      detail: 5 };
     let actual: u8 = code.into();
     let expected = 0b0100_0101_u8;
     assert_eqb!(actual, expected)
@@ -215,59 +202,40 @@ mod tests {
   #[test]
   fn opt() {
     use core::iter::repeat;
-    let cases: [(u16, Vec<u8>, Vec<u8>); 4] = [
-      (
-        24,
+    let cases: [(u16, Vec<u8>, Vec<u8>); 4] =
+      [(24,
         repeat(1).take(100).collect(),
-        [
-          [0b1101_1101u8, 24 - 13, 100 - 13].as_ref(),
-          repeat(1).take(100).collect::<Vec<u8>>().as_ref(),
-        ]
-        .concat(),
-      ),
-      (1, vec![1], vec![0b0001_0001, 1]),
-      (24, vec![1], vec![0b1101_0001, 11, 1]),
-      (
-        24,
+        [[0b1101_1101u8, 24 - 13, 100 - 13].as_ref(),
+         repeat(1).take(100).collect::<Vec<u8>>().as_ref()].concat()),
+       (1, vec![1], vec![0b0001_0001, 1]),
+       (24, vec![1], vec![0b1101_0001, 11, 1]),
+       (24,
         repeat(1).take(300).collect(),
-        [
-          [0b1101_1110, 24 - 13].as_ref(),
-          (300u16 - 269).to_be_bytes().as_ref(),
-          repeat(1).take(300).collect::<Vec<u8>>().as_ref(),
-        ]
-        .concat(),
-      ),
-    ];
+        [[0b1101_1110, 24 - 13].as_ref(),
+         (300u16 - 269).to_be_bytes().as_ref(),
+         repeat(1).take(300).collect::<Vec<u8>>().as_ref()].concat())];
 
     cases.into_iter().for_each(|(delta, values, expected)| {
-      let opt = Opt::<Vec<u8>> {
-        delta: OptDelta(delta),
-        value: OptValue(values.into_iter().collect()),
-      };
-      let mut actual = Vec::<u8>::new();
-      opt.extend_bytes(&mut actual);
-      assert_eqb_iter!(actual, expected)
-    });
+                       let opt = Opt::<Vec<u8>> { delta: OptDelta(delta),
+                                                  value: OptValue(values.into_iter().collect()) };
+                       let mut actual = Vec::<u8>::new();
+                       opt.extend_bytes(&mut actual);
+                       assert_eqb_iter!(actual, expected)
+                     });
   }
 
   #[test]
   fn no_payload_marker() {
-    let msg = alloc::Message {
-      id: Id(0),
-      ty: Type::Con,
-      ver: Default::default(),
-      code: Code {
-        class: 2,
-        detail: 5,
-      },
-      token: Token(Default::default()),
-      opts: Default::default(),
-      payload: Payload(Default::default()),
-    };
+    let msg = alloc::Message { id: Id(0),
+                               ty: Type::Con,
+                               ver: Default::default(),
+                               code: Code { class: 2,
+                                            detail: 5 },
+                               token: Token(Default::default()),
+                               opts: Default::default(),
+                               payload: Payload(Default::default()) };
 
-    assert_ne!(
-      msg.try_into_bytes::<Vec<_>>().unwrap().last(),
-      Some(&0b11111111)
-    );
+    assert_ne!(msg.try_into_bytes::<Vec<_>>().unwrap().last(),
+               Some(&0b11111111));
   }
 }

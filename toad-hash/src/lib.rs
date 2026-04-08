@@ -71,8 +71,8 @@ impl Blake2Hasher {
 impl Debug for Blake2Hasher {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.debug_tuple("Blake2Hasher")
-      .field(&"<Blake2bCore<U8>>")
-      .finish()
+     .field(&"<Blake2bCore<U8>>")
+     .finish()
   }
 }
 

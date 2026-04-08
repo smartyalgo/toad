@@ -43,9 +43,7 @@ impl<A: Array<Item = u8>> Writable<A> {
   }
 }
 
-impl<A> Display for Writable<A>
-where
-  A: Array<Item = u8>,
+impl<A> Display for Writable<A> where A: Array<Item = u8>
 {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     write!(f, "{}", self.as_str())
