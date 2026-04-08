@@ -1,7 +1,5 @@
 use std::io;
-use std::sync::Barrier;
-
-use lazycell::AtomicLazyCell;
+use std::sync::{Barrier, OnceLock};
 use toad::config::Config;
 use toad::net::Addrd;
 use toad::platform::Platform as _;
@@ -13,24 +11,24 @@ use toad::step::runtime;
 
 fn start_server(addr: &'static str) {
   const WORKER_THREAD_COUNT: usize = 10;
-  static STARTED: AtomicLazyCell<Barrier> = AtomicLazyCell::NONE;
-  STARTED.fill(Barrier::new(WORKER_THREAD_COUNT + 1)).unwrap();
+  static STARTED: OnceLock<Barrier> = OnceLock::new();
+  STARTED.set(Barrier::new(WORKER_THREAD_COUNT + 1)).unwrap();
 
   log::info!("[1] starting server");
   std::thread::spawn(move || {
-    static SERVER: AtomicLazyCell<P> = AtomicLazyCell::NONE;
+    static SERVER: OnceLock<P> = OnceLock::new();
     SERVER
-      .fill(P::try_new(addr, Config::default()).unwrap())
+      .set(P::try_new(addr, Config::default()).unwrap())
       .unwrap();
 
     for _ in 1..=WORKER_THREAD_COUNT {
       std::thread::spawn(|| {
         let init = Init(Some(|| {
-          STARTED.borrow().unwrap().wait();
+          STARTED.get().unwrap().wait();
         }));
 
         SERVER
-          .borrow()
+          .get()
           .unwrap()
           .run(init, |run| {
             run
@@ -43,7 +41,7 @@ fn start_server(addr: &'static str) {
     }
   });
 
-  STARTED.borrow().unwrap().wait();
+  STARTED.get().unwrap().wait();
 }
 
 mod route {
@@ -114,8 +112,8 @@ pub fn main() {
   start_server(&server_addr);
 
   const N_CLIENTS: usize = 4;
-  static FINISHED: AtomicLazyCell<Barrier> = AtomicLazyCell::NONE;
-  FINISHED.fill(Barrier::new(N_CLIENTS + 1)).unwrap();
+  static FINISHED: OnceLock<Barrier> = OnceLock::new();
+  FINISHED.set(Barrier::new(N_CLIENTS + 1)).unwrap();
 
   let names = include_str!("./names.txt")
     .split("\n")
@@ -135,11 +133,11 @@ pub fn main() {
       names
         .into_iter()
         .for_each(|name| test::hello(&client, name.trim(), server_addr));
-      FINISHED.borrow().unwrap().wait();
+      FINISHED.get().unwrap().wait();
     });
   }
 
-  FINISHED.borrow().unwrap().wait();
+  FINISHED.get().unwrap().wait();
 
   let done = Addrd(
     Req::<T<dtls::N>>::get("done").into(),

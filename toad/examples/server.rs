@@ -1,8 +1,7 @@
 use std::io;
-use std::sync::Barrier;
+use std::sync::{Barrier, OnceLock};
 use std::time::Duration;
 
-use lazycell::AtomicLazyCell;
 use toad::config::Config;
 use toad::net::Addrd;
 use toad::platform::Platform as _;
@@ -14,29 +13,29 @@ use toad::step::{runtime, Step};
 
 fn start_server(addr: &'static str) {
   // 5 worker threads + main thread
-  static STARTED: AtomicLazyCell<Barrier> = AtomicLazyCell::NONE;
-  STARTED.fill(Barrier::new(6)).unwrap();
+  static STARTED: OnceLock<Barrier> = OnceLock::new();
+  STARTED.set(Barrier::new(6)).unwrap();
 
   log::info!("[1] starting server");
   std::thread::spawn(move || {
-    static SERVER: AtomicLazyCell<P> = AtomicLazyCell::NONE;
+    static SERVER: OnceLock<P> = OnceLock::new();
     SERVER
-      .fill(P::try_new(addr, Config::default()).unwrap())
+      .set(P::try_new(addr, Config::default()).unwrap())
       .unwrap();
 
     std::thread::spawn(|| loop {
-      SERVER.borrow().unwrap().notify("time").unwrap();
+      SERVER.get().unwrap().notify("time").unwrap();
       std::thread::sleep(Duration::from_millis(500));
     });
 
     for _ in 1..=5 {
       std::thread::spawn(|| {
         let init = Init(Some(|| {
-          STARTED.borrow().unwrap().wait();
+          STARTED.get().unwrap().wait();
         }));
 
         SERVER
-          .borrow()
+          .get()
           .unwrap()
           .run(init, |run| {
             run
@@ -50,7 +49,7 @@ fn start_server(addr: &'static str) {
     }
   });
 
-  STARTED.borrow().unwrap().wait();
+  STARTED.get().unwrap().wait();
 }
 
 mod route {

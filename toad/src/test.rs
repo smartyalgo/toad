@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(missing_docs)]
 
 use ::core::cell::Cell;
 use ::core::ops::Deref;

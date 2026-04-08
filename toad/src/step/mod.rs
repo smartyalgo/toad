@@ -468,6 +468,7 @@ impl<P: PlatformTypes> Step<P> for () {
 }
 
 #[cfg(test)]
+#[allow(missing_docs)]
 pub mod test {
   use embedded_time::Clock;
 
