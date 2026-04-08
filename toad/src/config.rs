@@ -1,9 +1,7 @@
 #![allow(dead_code)]
 
-use embedded_time::duration::Milliseconds;
-
 use crate::retry::{Attempts, Strategy};
-use crate::time::Millis;
+use crate::time::{Millis, Milliseconds};
 
 /// Bytes / Second
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -17,9 +15,9 @@ pub struct Con {
   ///
   /// Defaults to an exponential retry strategy:
   /// ```
-  /// use embedded_time::duration::Milliseconds;
   /// use toad::config::Con;
   /// use toad::retry::Strategy;
+  /// use toad::time::Milliseconds;
   ///
   /// assert_eq!(Con::default().unacked_retry_strategy,
   ///            Strategy::Exponential { init_min: Milliseconds(500),
@@ -35,9 +33,9 @@ pub struct Con {
   ///
   /// Defaults to a lazy exponential retry strategy:
   /// ```
-  /// use embedded_time::duration::Milliseconds;
   /// use toad::config::Con;
   /// use toad::retry::Strategy;
+  /// use toad::time::Milliseconds;
   ///
   /// assert_eq!(Con::default().acked_retry_strategy,
   ///            Strategy::Exponential { init_min: Milliseconds(1_000),
@@ -68,9 +66,9 @@ pub struct Non {
   ///
   /// Defaults to a pessimistic exponential retry strategy:
   /// ```
-  /// use embedded_time::duration::Milliseconds;
   /// use toad::config::Non;
   /// use toad::retry::Strategy;
+  /// use toad::time::Milliseconds;
   ///
   /// assert_eq!(Non::default().retry_strategy,
   ///            Strategy::Exponential { init_min: Milliseconds(250),
@@ -146,8 +144,8 @@ pub struct Msg {
   /// Defaults to 5000 milliseconds.
   ///
   /// ```
-  /// use embedded_time::duration::Milliseconds;
   /// use toad::config::Msg;
+  /// use toad::time::Milliseconds;
   ///
   /// assert_eq!(Msg::default().multicast_response_leisure,
   ///            Milliseconds(5000u64));

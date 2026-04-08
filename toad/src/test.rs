@@ -7,8 +7,6 @@ use ::core::time::Duration;
 use ::std::sync::{Mutex, RwLock};
 use ::std::thread;
 use ::toad_msg::{TryFromBytes, TryIntoBytes};
-use embedded_time::rate::Fraction;
-use embedded_time::Instant;
 use net::*;
 use no_std_net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std_alloc::sync::Arc;
@@ -17,6 +15,7 @@ use toad_msg::Token;
 use toad_stem::Stem;
 
 use super::*;
+use crate::time::Instant;
 
 // lol `crate::test::x.x.x.x(80)`
 pub struct X1 {
@@ -370,18 +369,16 @@ impl ClockMock {
     self.0.set(to);
   }
 
-  pub fn instant(n: u64) -> Instant<Self> {
-    Instant::new(n)
+  /// Create an Instant from a raw microsecond value (converted to milliseconds)
+  pub fn instant(micros: u64) -> Instant {
+    Instant::new(micros / 1000)
   }
 }
 
-impl embedded_time::Clock for ClockMock {
-  type T = u64;
-
-  const SCALING_FACTOR: Fraction = Fraction::new(1, 1_000_000);
-
-  fn try_now(&self) -> Result<Instant<Self>, embedded_time::clock::Error> {
-    Ok(Instant::new(self.0.get()))
+impl crate::time::Clock for ClockMock {
+  fn try_now(&self) -> Result<Instant, crate::time::ClockError> {
+    // stored value is microseconds; return milliseconds
+    Ok(Instant::new(self.0.get() / 1000))
   }
 }
 

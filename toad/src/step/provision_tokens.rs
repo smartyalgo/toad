@@ -1,4 +1,3 @@
-use embedded_time::Instant;
 use no_std_net::SocketAddr;
 use toad_msg::{CodeKind, Token};
 
@@ -9,7 +8,7 @@ use crate::platform;
 use crate::platform::PlatformTypes;
 use crate::req::Req;
 use crate::resp::Resp;
-use crate::time::Millis;
+use crate::time::{Instant, Millis};
 
 /// Errors that can be encountered when provisioning tokens
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy)]
@@ -69,17 +68,13 @@ impl<Inner> Default for ProvisionTokens<Inner> where Inner: Default
 impl<Inner> ProvisionTokens<Inner> {
   fn next<P>(&self,
              effs: &mut P::Effects,
-             now: Instant<P::Clock>,
+             now: Instant,
              cfg: Config)
              -> Result<Token, Error<Inner::Error>>
     where P: PlatformTypes,
           Inner: Step<P>
   {
-    // TODO(orion): we may want to handle this
-    let now_since_epoch =
-      Millis::try_from(now.duration_since_epoch()).map_err(|_| {
-                                                    Error::MillisSinceEpochWouldOverflow
-                                                  })?;
+    let now_since_epoch = now.duration_since_epoch();
 
     #[allow(clippy::many_single_char_names)]
     let bytes = {

@@ -1,8 +1,6 @@
 use core::any::type_name;
 use core::marker::PhantomData;
 
-use embedded_time::duration::Milliseconds;
-use embedded_time::Instant;
 use no_std_net::SocketAddr;
 use tinyvec::ArrayVec;
 use toad_array::Array;
@@ -18,7 +16,7 @@ use crate::platform;
 use crate::platform::PlatformTypes;
 use crate::req::Req;
 use crate::resp::Resp;
-use crate::time::Stamped;
+use crate::time::{Instant, Milliseconds, Stamped};
 
 /// Supertrait type shenanigans
 ///
@@ -31,19 +29,18 @@ use crate::time::Stamped;
 /// you would have to wrap your collection in a newtype.
 pub trait IdsBySocketAddr<P: PlatformTypes>: Map<SocketAddrWithDefault, Self::Ids> {
   /// the "given `A` which is an..." type above
-  type Ids: Array<Item = Stamped<P::Clock, IdWithDefault>>;
+  type Ids: Array<Item = Stamped<IdWithDefault>>;
 }
 
 #[cfg(feature = "alloc")]
-impl<P: platform::PlatformTypes, A: Array<Item = Stamped<P::Clock, IdWithDefault>>>
-  IdsBySocketAddr<P> for std_alloc::collections::BTreeMap<SocketAddrWithDefault, A>
+impl<P: platform::PlatformTypes, A: Array<Item = Stamped<IdWithDefault>>> IdsBySocketAddr<P>
+  for std_alloc::collections::BTreeMap<SocketAddrWithDefault, A>
 {
   type Ids = A;
 }
 
-impl<P: platform::PlatformTypes,
-      A: Array<Item = Stamped<P::Clock, IdWithDefault>>,
-      const N: usize> IdsBySocketAddr<P> for ArrayVec<[(SocketAddrWithDefault, A); N]>
+impl<P: platform::PlatformTypes, A: Array<Item = Stamped<IdWithDefault>>, const N: usize>
+  IdsBySocketAddr<P> for ArrayVec<[(SocketAddrWithDefault, A); N]>
 {
   type Ids = A;
 }
@@ -110,16 +107,14 @@ impl<P, Inner, Ids> ProvisionIds<P, Inner, Ids>
   where Ids: IdsBySocketAddr<P>,
         P: PlatformTypes
 {
-  fn prune(effs: &mut P::Effects, seen: &mut Ids, now: Instant<P::Clock>, config: Config) {
+  fn prune(effs: &mut P::Effects, seen: &mut Ids, now: Instant, config: Config) {
     for (_, ids) in seen.iter_mut() {
       ids.sort_by_key(|t| t.time());
-      let ix_of_first_id_to_keep = ids.iter()
-                                      .enumerate()
-                                      .find(|(_, id)| {
-                                        now.checked_duration_since(&id.time())
-            < Some(Milliseconds(config.exchange_lifetime_millis()).into())
-                                      })
-                                      .map(|(ix, _)| ix);
+      let ix_of_first_id_to_keep =
+        ids.iter()
+           .enumerate()
+           .find(|(_, id)| (now - id.time()) < Milliseconds(config.exchange_lifetime_millis()))
+           .map(|(ix, _)| ix);
 
       match ix_of_first_id_to_keep {
         | Some(keep_at) if keep_at == 0 => (),
@@ -150,7 +145,7 @@ impl<P, Inner, Ids> ProvisionIds<P, Inner, Ids>
     match seen.insert(SocketAddrWithDefault(addr), Default::default()) {
       | Ok(_) => (),
       | Err(InsertError::CapacityExhausted) => {
-        let mut to_remove: Option<Stamped<P::Clock, SocketAddrWithDefault>> = None;
+        let mut to_remove: Option<Stamped<SocketAddrWithDefault>> = None;
 
         for (addr, ids) in seen.iter_mut() {
           if ids.is_empty() {
@@ -180,7 +175,7 @@ impl<P, Inner, Ids> ProvisionIds<P, Inner, Ids>
   fn next(effs: &mut P::Effects,
           seen: &mut Ids,
           config: Config,
-          time: Instant<P::Clock>,
+          time: Instant,
           addr: SocketAddr)
           -> Id {
     match seen.get_mut(&SocketAddrWithDefault(addr)) {
@@ -249,7 +244,7 @@ impl<P, Inner, Ids> ProvisionIds<P, Inner, Ids>
   fn seen(effs: &mut P::Effects,
           seen: &mut Ids,
           config: Config,
-          now: Instant<P::Clock>,
+          now: Instant,
           addr: SocketAddr,
           id: Id) {
     Self::prune(effs, seen, now, config);
@@ -367,18 +362,14 @@ impl<P, E: super::Error, Inner, Ids> Step<P> for ProvisionIds<P, Inner, Ids>
 mod test {
   use std::collections::BTreeMap;
 
-  use embedded_time::duration::Microseconds;
-
   use super::*;
   use crate::step::test::test_step;
   use crate::test::{self, ClockMock, Platform as P};
 
   type InnerPollReq = Addrd<Req<test::Platform>>;
   type InnerPollResp = Addrd<Resp<test::Platform>>;
-  type ProvisionIds<S> = super::ProvisionIds<P,
-                                             S,
-                                             BTreeMap<SocketAddrWithDefault,
-                                                      Vec<Stamped<ClockMock, IdWithDefault>>>>;
+  type ProvisionIds<S> =
+    super::ProvisionIds<P, S, BTreeMap<SocketAddrWithDefault, Vec<Stamped<IdWithDefault>>>>;
 
   fn test_msg(id: Id) -> Addrd<test::Message> {
     use toad_msg::*;
@@ -439,7 +430,7 @@ mod test {
 
   #[test]
   fn seen_should_remove_oldest_addr_when_new_addr_would_exceed_capacity() {
-    type Ids = ArrayVec<[Stamped<ClockMock, IdWithDefault>; 16]>;
+    type Ids = ArrayVec<[Stamped<IdWithDefault>; 16]>;
     type IdsByAddr = ArrayVec<[(SocketAddrWithDefault, Ids); 2]>;
     type Step = super::ProvisionIds<P, (), IdsByAddr>;
 
@@ -457,19 +448,19 @@ mod test {
                Step::seen(&mut effs,
                           s,
                           cfg,
-                          ClockMock::instant(1),
+                          ClockMock::instant(1_000),
                           test::dummy_addr_2(),
                           Id(1));
                Step::seen(&mut effs,
                           s,
                           cfg,
-                          ClockMock::instant(2),
+                          ClockMock::instant(2_000),
                           test::dummy_addr(),
                           Id(2));
                Step::seen(&mut effs,
                           s,
                           cfg,
-                          ClockMock::instant(3),
+                          ClockMock::instant(3_000),
                           test::dummy_addr_3(),
                           Id(1));
              });
@@ -482,7 +473,7 @@ mod test {
 
   #[test]
   fn seen_should_remove_empty_addr_when_new_addr_would_exceed_capacity() {
-    type Ids = ArrayVec<[Stamped<ClockMock, IdWithDefault>; 16]>;
+    type Ids = ArrayVec<[Stamped<IdWithDefault>; 16]>;
     type IdsByAddr = ArrayVec<[(SocketAddrWithDefault, Ids); 2]>;
     type Step = super::ProvisionIds<P, (), IdsByAddr>;
 
@@ -516,7 +507,7 @@ mod test {
 
   #[test]
   fn seen_should_remove_oldest_id_when_about_to_exceed_capacity() {
-    type Ids = ArrayVec<[Stamped<ClockMock, IdWithDefault>; 2]>;
+    type Ids = ArrayVec<[Stamped<IdWithDefault>; 2]>;
     type IdsByAddr = ArrayVec<[(SocketAddrWithDefault, Ids); 1]>;
     type Step = super::ProvisionIds<P, (), IdsByAddr>;
 
@@ -563,10 +554,6 @@ mod test {
     let step = Step::default();
     let cfg = Config::default();
     let exchange_lifetime_micros = cfg.exchange_lifetime_millis() * 1_000;
-
-    // This test assumes that the clock considers 1 "tick" to be 1 microsecond.
-    assert_eq!(Microseconds::try_from(ClockMock::instant(1).duration_since_epoch()),
-               Ok(Microseconds(1u64)));
 
     step.seen.map_mut(|s| {
                Step::seen(&mut effs,

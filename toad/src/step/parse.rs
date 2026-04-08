@@ -105,7 +105,6 @@ impl<Inner: Step<P>, P: PlatformTypes> Step<P> for Parse<Inner> {
 
 #[cfg(test)]
 mod test {
-  use embedded_time::Clock;
   use toad_msg::{Code, Type};
 
   use super::super::test;
@@ -170,7 +169,7 @@ mod test {
         (inner.poll_req => {None}),
         (snapshot = {
           platform::Snapshot {
-            time: crate::test::ClockMock::new().try_now().unwrap(),
+            time: crate::test::ClockMock::instant(0),
             recvd_dgram: Some(test_msg(Type::Con, Code::new(1, 01)).0),
             config: Default::default(),
           }
@@ -187,7 +186,7 @@ mod test {
         (inner.poll_req => {None}),
         (snapshot = {
           platform::Snapshot {
-            time: crate::test::ClockMock::new().try_now().unwrap(),
+            time: crate::test::ClockMock::instant(0),
             recvd_dgram: Some(test_msg(Type::Ack, Code::new(0, 0)).0),
             config: Default::default(),
           }
@@ -204,7 +203,7 @@ mod test {
         (inner.poll_req => {None}),
         (snapshot = {
           platform::Snapshot {
-            time: crate::test::ClockMock::new().try_now().unwrap(),
+            time: crate::test::ClockMock::instant(0),
             recvd_dgram: Some(test_msg(Type::Ack, Code::new(2, 04)).0),
             config: Default::default(),
           }
@@ -221,7 +220,7 @@ mod test {
           (inner.poll_resp => {None}),
           (snapshot = {
             platform::Snapshot {
-              time: crate::test::ClockMock::new().try_now().unwrap(),
+              time: crate::test::ClockMock::instant(0),
               recvd_dgram: Some(test_msg(Type::Ack, Code::new(2, 04)).0),
               config: Default::default(),
             }
@@ -238,7 +237,7 @@ mod test {
         (inner.poll_resp => {None}),
         (snapshot = {
           platform::Snapshot {
-           time: crate::test::ClockMock::new().try_now().unwrap(),
+           time: crate::test::ClockMock::instant(0),
            recvd_dgram: Some(test_msg(Type::Con, Code::new(1, 1)).0),
            config: Default::default(),
           }

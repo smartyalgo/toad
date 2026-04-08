@@ -49,7 +49,7 @@ impl<StepError> toad::platform::PlatformError<StepError, Throwable> for IOExcept
     Self::new_caused_by(&mut java::env(), "", e)
   }
 
-  fn clock(e: embedded_time::clock::Error) -> Self {
+  fn clock(e: toad::time::ClockError) -> Self {
     Self::new(&mut java::env(), format!("{:?}", e))
   }
 }

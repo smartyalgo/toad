@@ -32,7 +32,7 @@ pub mod runtime {
   #[allow(missing_docs)]
   pub type HandleAcks<M, S> = handle_acks::HandleAcks<S, Map<M, Addrd<Token>, ()>>;
   #[allow(missing_docs)]
-  pub type Retry<P, A, S> = retry::Retry<S, Array<A, (retry::State<Clock<P>>, Addrd<Message<P>>)>>;
+  pub type Retry<P, A, S> = retry::Retry<S, Array<A, (retry::State, Addrd<Message<P>>)>>;
   #[allow(missing_docs)]
   pub type BufferResponses<P, M, S> =
     buffer_responses::BufferResponses<S,
@@ -41,9 +41,7 @@ pub mod runtime {
   pub type ProvisionIds<P, M, A, S> =
     provision_ids::ProvisionIds<P,
                                 S,
-                                Map<M,
-                                    SocketAddrWithDefault,
-                                    Array<A, Stamped<Clock<P>, IdWithDefault>>>>;
+                                Map<M, SocketAddrWithDefault, Array<A, Stamped<IdWithDefault>>>>;
   #[allow(missing_docs)]
   pub type Observe<P, A, S> = observe::Observe<S,
                                                Array<A, observe::Sub<P>>,
@@ -457,14 +455,13 @@ impl<P: PlatformTypes> Step<P> for () {
 #[cfg(test)]
 #[allow(missing_docs)]
 pub mod test {
-  use embedded_time::Clock;
 
   use super::*;
   use crate::test;
   use crate::test::ClockMock;
 
   pub fn default_snapshot() -> platform::Snapshot<test::Platform> {
-    platform::Snapshot { time: ClockMock::new().try_now().unwrap(),
+    platform::Snapshot { time: ClockMock::instant(0),
                          recvd_dgram: Some(crate::net::Addrd(Default::default(),
                                                              crate::test::dummy_addr())),
                          config: crate::config::Config::default() }

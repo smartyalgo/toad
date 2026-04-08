@@ -1,7 +1,5 @@
 #![allow(clippy::many_single_char_names)]
 
-use embedded_time::rate::Fraction;
-
 /// Networking! woohoo!
 pub mod net;
 use core::marker::PhantomData;
@@ -88,7 +86,7 @@ impl<StepError, SocketError> PlatformError<StepError, SocketError> for io::Error
     io::Error::new(io::ErrorKind::Other, format!("{:?}", e))
   }
 
-  fn clock(e: embedded_time::clock::Error) -> Self {
+  fn clock(e: crate::time::ClockError) -> Self {
     io::Error::new(io::ErrorKind::Other, format!("{:?}", e))
   }
 }
@@ -172,7 +170,7 @@ impl<Sec, Steps> crate::platform::Platform<Steps> for Platform<Sec, Steps>
   }
 }
 
-/// Implement [`embedded_time::Clock`] using [`std::time`] primitives
+/// Implement [`crate::time::Clock`] using [`std::time`] primitives
 #[derive(Debug, Clone, Copy)]
 pub struct Clock(std::time::Instant);
 
@@ -189,15 +187,10 @@ impl Clock {
   }
 }
 
-impl embedded_time::Clock for Clock {
-  type T = u64;
-
-  // microseconds
-  const SCALING_FACTOR: Fraction = Fraction::new(1, 1_000_000);
-
-  fn try_now(&self) -> Result<embedded_time::Instant<Self>, embedded_time::clock::Error> {
+impl crate::time::Clock for Clock {
+  fn try_now(&self) -> Result<crate::time::Instant, crate::time::ClockError> {
     let now = std::time::Instant::now();
     let elapsed = now.duration_since(self.0);
-    Ok(embedded_time::Instant::new(elapsed.as_micros() as u64))
+    Ok(crate::time::Instant::new(elapsed.as_millis() as u64))
   }
 }

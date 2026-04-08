@@ -1,11 +1,8 @@
 use core::ops::{Add, Mul, RangeInclusive, Sub};
 
-use embedded_time::duration::Milliseconds;
-use embedded_time::Instant;
-use naan::prelude::Monad;
 use rand::{Rng, SeedableRng};
 
-use crate::time::{Clock, Millis};
+use crate::time::{Instant, Millis, Milliseconds};
 
 /// A non-blocking timer that allows a fixed-delay or exponential-backoff retry,
 /// that lives alongside some operation to retry.
@@ -14,9 +11,8 @@ use crate::time::{Clock, Millis};
 /// we don't have the luxury of a memory allocator :)
 ///
 /// ```
-/// use embedded_time::clock::Clock;
-/// use embedded_time::duration::Milliseconds;
 /// use toad::retry;
+/// use toad::time::{Clock, Milliseconds};
 ///
 /// # main();
 /// fn main() {
@@ -46,31 +42,25 @@ use crate::time::{Clock, Millis};
 ///   }
 /// }
 /// ```
-#[derive(Debug)]
-pub struct RetryTimer<C: Clock> {
-  start: Instant<C>,
-  last_attempted_at: Option<Instant<C>>,
+#[derive(Debug, Clone, Copy)]
+pub struct RetryTimer {
+  start: Instant,
+  last_attempted_at: Option<Instant>,
   init: Millis,
   strategy: Strategy,
   attempts: Attempts,
   max_attempts: Attempts,
 }
 
-impl<C> RetryTimer<C> where C: Clock
-{
+impl RetryTimer {
   /// Create a new retrier
-  pub fn new(start: Instant<C>, strategy: Strategy, max_attempts: Attempts) -> Self {
+  pub fn new(start: Instant, strategy: Strategy, max_attempts: Attempts) -> Self {
     Self { start,
            strategy,
            last_attempted_at: None,
            init: if strategy.has_jitter() {
-             let mut rand =
-               Ok(start.duration_since_epoch()).bind(Millis::try_from)
-                                               .map(|Milliseconds(ms)| {
-                                                 rand_chacha::ChaCha8Rng::seed_from_u64(ms)
-                                               })
-                                               .unwrap();
-
+             let Milliseconds(ms) = start.duration_since_epoch();
+             let mut rand = rand_chacha::ChaCha8Rng::seed_from_u64(ms);
              Milliseconds(rand.random_range(strategy.range()))
            } else {
              Milliseconds(*strategy.range().start())
@@ -85,7 +75,7 @@ impl<C> RetryTimer<C> where C: Clock
   /// Returns `nb::Error::WouldBlock` when we have not yet
   /// waited the appropriate amount of time to retry.
   pub fn what_should_i_do(&mut self,
-                          now: Instant<C>)
+                          now: Instant)
                           -> nb::Result<YouShould, core::convert::Infallible> {
     if self.attempts >= self.max_attempts {
       Ok(YouShould::Cry)
@@ -101,18 +91,18 @@ impl<C> RetryTimer<C> where C: Clock
   }
 
   /// Get the instant this retry timer was first attempted
-  pub fn first_attempted_at(&self) -> Instant<C> {
+  pub fn first_attempted_at(&self) -> Instant {
     self.start
   }
 
   /// Get the instant this retry timer was last attempted (if at all)
-  pub fn last_attempted_at(&self) -> Instant<C> {
+  pub fn last_attempted_at(&self) -> Instant {
     self.last_attempted_at
         .unwrap_or_else(|| self.first_attempted_at())
   }
 
   /// Get the next time at which this should be retried
-  pub fn next_attempt_at(&self) -> Instant<C> {
+  pub fn next_attempt_at(&self) -> Instant {
     let after_start = match self.strategy {
       | Strategy::Delay { .. } => Milliseconds(self.init.0 * (self.attempts.0 as u64)),
       | Strategy::Exponential { .. } => {
@@ -124,21 +114,7 @@ impl<C> RetryTimer<C> where C: Clock
   }
 }
 
-impl<C> Copy for RetryTimer<C> where C: Clock {}
-impl<C> Clone for RetryTimer<C> where C: Clock
-{
-  fn clone(&self) -> Self {
-    Self { start: self.start,
-           init: self.init,
-           last_attempted_at: self.last_attempted_at,
-           strategy: self.strategy,
-           attempts: self.attempts,
-           max_attempts: self.max_attempts }
-  }
-}
-
-impl<C> PartialEq for RetryTimer<C> where C: Clock
-{
+impl PartialEq for RetryTimer {
   fn eq(&self, other: &Self) -> bool {
     self.start == other.start
     && self.init == other.init
@@ -149,7 +125,7 @@ impl<C> PartialEq for RetryTimer<C> where C: Clock
   }
 }
 
-impl<C> Eq for RetryTimer<C> where C: Clock {}
+impl Eq for RetryTimer {}
 
 /// A number of attempts
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -258,10 +234,8 @@ impl Strategy {
 
 #[cfg(test)]
 mod test {
-  use embedded_time::rate::Fraction;
-  use embedded_time::Clock;
-
   use super::*;
+  use crate::time::{Clock, ClockError, Instant};
 
   #[derive(Debug)]
   pub struct FakeClock(pub *const u64);
@@ -271,12 +245,9 @@ mod test {
     }
   }
 
-  impl embedded_time::Clock for FakeClock {
-    type T = u64;
-
-    const SCALING_FACTOR: Fraction = Fraction::new(1, 1000);
-
-    fn try_now(&self) -> Result<Instant<Self>, embedded_time::clock::Error> {
+  impl Clock for FakeClock {
+    fn try_now(&self) -> Result<Instant, ClockError> {
+      // FakeClock stores raw millisecond values
       unsafe { Ok(Instant::new(*self.0)) }
     }
   }

@@ -1,15 +1,83 @@
-use embedded_time::clock::Error;
-use embedded_time::Instant;
-
 use crate::todo::String;
 
-/// A duration, in milliseconds
-pub type Millis = embedded_time::duration::Milliseconds<u64>;
+/// A duration in milliseconds
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Hash)]
+pub struct Milliseconds<T>(pub T);
 
-/// Supertrait of [`embedded_time::Clock`] pinning the
-/// type of "ticks" to u64
-pub trait Clock: core::fmt::Debug + embedded_time::Clock<T = u64> {}
-impl<C: embedded_time::Clock<T = u64> + core::fmt::Debug> Clock for C {}
+/// [`Milliseconds`] with a `u64` inner
+pub type Millis = Milliseconds<u64>;
+
+impl core::ops::Add for Millis {
+  type Output = Self;
+
+  fn add(self, rhs: Self) -> Self {
+    Milliseconds(self.0 + rhs.0)
+  }
+}
+
+impl core::ops::Sub for Millis {
+  type Output = Self;
+
+  fn sub(self, rhs: Self) -> Self {
+    Milliseconds(self.0.saturating_sub(rhs.0))
+  }
+}
+
+impl core::ops::Mul<u64> for Millis {
+  type Output = Self;
+
+  fn mul(self, rhs: u64) -> Self {
+    Milliseconds(self.0 * rhs)
+  }
+}
+
+impl<T: core::fmt::Display> core::fmt::Display for Milliseconds<T> {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
+
+/// An error returned when the system clock cannot be read
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ClockError;
+
+/// A point in time, represented as milliseconds since an arbitrary epoch
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Hash)]
+pub struct Instant(pub u64);
+
+impl Instant {
+  /// Create a new Instant from a millisecond timestamp
+  pub fn new(millis: u64) -> Self {
+    Self(millis)
+  }
+
+  /// Duration elapsed since the epoch, in milliseconds
+  pub fn duration_since_epoch(self) -> Millis {
+    Milliseconds(self.0)
+  }
+}
+
+impl core::ops::Add<Millis> for Instant {
+  type Output = Self;
+
+  fn add(self, rhs: Millis) -> Self {
+    Instant(self.0 + rhs.0)
+  }
+}
+
+impl core::ops::Sub for Instant {
+  type Output = Millis;
+
+  fn sub(self, rhs: Self) -> Millis {
+    Milliseconds(self.0.saturating_sub(rhs.0))
+  }
+}
+
+/// A clock that can return the current time as milliseconds since an arbitrary epoch
+pub trait Clock: core::fmt::Debug {
+  /// Get the current time
+  fn try_now(&self) -> Result<Instant, ClockError>;
+}
 
 /// Timeout configuration allowing for "never time out" as an option
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
@@ -21,16 +89,16 @@ pub enum Timeout {
 }
 
 /// Data associated with a timestamp
-pub struct Stamped<C: Clock, T>(pub T, pub Instant<C>);
+pub struct Stamped<T>(pub T, pub Instant);
 
-impl<C: Clock, T: core::fmt::Debug> core::fmt::Debug for Stamped<C, T> {
+impl<T: core::fmt::Debug> core::fmt::Debug for Stamped<T> {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     use core::fmt::Write;
 
     let mut instant = String::<100>::default();
     write!(instant,
            "<{}ms since epoch>",
-           Millis::try_from(self.1.duration_since_epoch()).unwrap())?;
+           self.1.duration_since_epoch().0)?;
 
     f.debug_tuple("Stamped")
      .field(&self.0)
@@ -39,15 +107,15 @@ impl<C: Clock, T: core::fmt::Debug> core::fmt::Debug for Stamped<C, T> {
   }
 }
 
-impl<C: Clock, T: PartialEq> PartialEq for Stamped<C, T> {
+impl<T: PartialEq> PartialEq for Stamped<T> {
   fn eq(&self, other: &Self) -> bool {
     self.0 == other.0 && self.1 == other.1
   }
 }
 
-impl<C: Clock, T: Eq> Eq for Stamped<C, T> {}
+impl<T: Eq> Eq for Stamped<T> {}
 
-impl<C: Clock, T: PartialOrd> PartialOrd for Stamped<C, T> {
+impl<T: PartialOrd> PartialOrd for Stamped<T> {
   fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
     use core::cmp::Ordering;
 
@@ -58,7 +126,7 @@ impl<C: Clock, T: PartialOrd> PartialOrd for Stamped<C, T> {
   }
 }
 
-impl<C: Clock, T: Ord> Ord for Stamped<C, T> {
+impl<T: Ord> Ord for Stamped<T> {
   fn cmp(&self, other: &Self) -> core::cmp::Ordering {
     use core::cmp::Ordering;
 
@@ -69,33 +137,33 @@ impl<C: Clock, T: Ord> Ord for Stamped<C, T> {
   }
 }
 
-impl<C: Clock, T: Default> Default for Stamped<C, T> {
+impl<T: Default> Default for Stamped<T> {
   fn default() -> Self {
     Self(T::default(), Instant::new(0))
   }
 }
 
-impl<C: Clock, T: Clone> Clone for Stamped<C, T> {
+impl<T: Clone> Clone for Stamped<T> {
   fn clone(&self) -> Self {
     Self(self.0.clone(), self.1)
   }
 }
 
-impl<C: Clock, T: Copy> Copy for Stamped<C, T> {}
+impl<T: Copy> Copy for Stamped<T> {}
 
-impl<C: Clock, T> Stamped<C, T> {
-  /// TODO
-  pub fn new(clock: &C, t: T) -> Result<Self, Error> {
+impl<T> Stamped<T> {
+  /// Create a new stamped value using the current time from `clock`
+  pub fn new<C: Clock>(clock: &C, t: T) -> Result<Self, ClockError> {
     clock.try_now().map(|now| Self(t, now))
   }
 
   /// TODO
-  pub fn as_ref(&self) -> Stamped<C, &T> {
+  pub fn as_ref(&self) -> Stamped<&T> {
     Stamped(&self.0, self.1)
   }
 
   /// TODO
-  pub fn as_mut(&mut self) -> Stamped<C, &mut T> {
+  pub fn as_mut(&mut self) -> Stamped<&mut T> {
     Stamped(&mut self.0, self.1)
   }
 
@@ -105,7 +173,7 @@ impl<C: Clock, T> Stamped<C, T> {
   }
 
   /// TODO
-  pub fn time(&self) -> Instant<C> {
+  pub fn time(&self) -> Instant {
     self.1
   }
 
@@ -115,12 +183,12 @@ impl<C: Clock, T> Stamped<C, T> {
   }
 
   /// TODO
-  pub fn map<R>(self, f: impl FnOnce(T) -> R) -> Stamped<C, R> {
+  pub fn map<R>(self, f: impl FnOnce(T) -> R) -> Stamped<R> {
     Stamped(f(self.0), self.1)
   }
 
   /// TODO
-  pub fn find_latest(winner: Option<Stamped<C, T>>, cur: Stamped<C, T>) -> Option<Stamped<C, T>> {
+  pub fn find_latest(winner: Option<Stamped<T>>, cur: Stamped<T>) -> Option<Stamped<T>> {
     Some(winner.filter(|winner| winner.time() > cur.time())
                .unwrap_or(cur))
   }

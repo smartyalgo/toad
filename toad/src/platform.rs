@@ -1,7 +1,6 @@
 use core::fmt::Debug;
 
 use ::toad_msg::{Id, OptNumber, OptValue, OptionMap, Token, TryIntoBytes};
-use embedded_time::Instant;
 use naan::prelude::MonadOnce;
 use no_std_net::SocketAddr;
 #[cfg(feature = "alloc")]
@@ -13,7 +12,7 @@ use crate::net::{Addrd, Socket};
 use crate::req::Req;
 use crate::resp::Resp;
 use crate::step::Step;
-use crate::time::Clock;
+use crate::time::{Clock, Instant};
 use crate::todo::String;
 
 /// Default [`PlatformError`] implementation
@@ -23,7 +22,7 @@ pub enum Error<Step, Socket> {
   MessageToBytes(::toad_msg::to_bytes::MessageToBytesError),
   Step(Step),
   Socket(Socket),
-  Clock(embedded_time::clock::Error),
+  Clock(crate::time::ClockError),
 }
 
 impl<Step, Socket> PlatformError<Step, Socket> for Error<Step, Socket>
@@ -42,7 +41,7 @@ impl<Step, Socket> PlatformError<Step, Socket> for Error<Step, Socket>
     Self::Socket(e)
   }
 
-  fn clock(e: embedded_time::clock::Error) -> Self {
+  fn clock(e: crate::time::ClockError) -> Self {
     Self::Clock(e)
   }
 }
@@ -59,7 +58,7 @@ pub trait PlatformError<StepError, SocketError>: Sized + core::fmt::Debug {
   fn socket(e: SocketError) -> Self;
 
   /// Convert a clock error to PlatformError
-  fn clock(e: embedded_time::clock::Error) -> Self;
+  fn clock(e: crate::time::ClockError) -> Self;
 }
 
 /// The runtime component of the `Platform` abstraction
@@ -89,8 +88,6 @@ pub trait Platform<Steps>
   /// including the system time and datagrams currently
   /// in the network socket
   fn snapshot(&self) -> Result<Snapshot<Self::Types>, Self::Error> {
-    use embedded_time::Clock;
-
     self.socket()
         .poll()
         .map_err(Self::Error::socket)
@@ -321,7 +318,7 @@ pub trait PlatformTypes: Sized + 'static + core::fmt::Debug {
 #[non_exhaustive]
 pub struct Snapshot<P: PlatformTypes> {
   /// The current system time at the start of the step pipe
-  pub time: Instant<P::Clock>,
+  pub time: Instant,
 
   /// A UDP datagram received from somewhere
   pub recvd_dgram: Option<Addrd<<P::Socket as Socket>::Dgram>>,
@@ -405,9 +402,9 @@ impl<P: PlatformTypes> PartialEq for Effect<P> {
 /// we've attempted to send this request and whether we
 /// should consider it poisoned.
 #[derive(Debug, Clone, Copy)]
-pub struct Retryable<P: PlatformTypes, T>(pub T, pub crate::retry::RetryTimer<P::Clock>);
+pub struct Retryable<T>(pub T, pub crate::retry::RetryTimer);
 
-impl<P: PlatformTypes, T> Retryable<P, T> {
+impl<T> Retryable<T> {
   /// Gets the data, discarding the retry timer
   pub fn unwrap(self) -> T {
     self.0

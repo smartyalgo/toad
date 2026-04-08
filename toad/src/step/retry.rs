@@ -1,5 +1,3 @@
-use embedded_time::duration::Milliseconds;
-use embedded_time::Instant;
 use toad_array::Array;
 use toad_msg::{CodeKind, Token, Type};
 use toad_stem::Stem;
@@ -12,7 +10,7 @@ use crate::platform::{self, Effect, PlatformTypes, Snapshot};
 use crate::req::Req;
 use crate::resp::Resp;
 use crate::retry::{Attempts, RetryTimer, Strategy, YouShould};
-use crate::time::{Clock, Millis};
+use crate::time::{Instant, Millis, Milliseconds};
 
 #[allow(missing_docs)]
 #[allow(missing_debug_implementations)]
@@ -28,29 +26,19 @@ pub struct Debug {
 /// Buffer used to store messages queued for retry
 pub trait Buf<P>
   where P: PlatformTypes,
-        Self: Array<Item = (State<P::Clock>, Addrd<platform::Message<P>>)>
+        Self: Array<Item = (State, Addrd<platform::Message<P>>)>
 {
   /// Data points used by log messaging
-  fn debug(now: Instant<P::Clock>,
-           state: &State<P::Clock>,
-           msg: &Addrd<platform::toad_msg::Message<P>>)
-           -> Debug {
+  fn debug(now: Instant, state: &State, msg: &Addrd<platform::toad_msg::Message<P>>) -> Debug {
     let msg_short = format!(100,
                             "{:?} {:?} {:?}",
                             msg.data().ty,
                             msg.data().code,
                             msg.data().token);
-    let since_first_attempt = Millis::try_from(now - state.retry_timer().first_attempted_at())
-      .expect("duration since first attempt should be less than u64::MAX milliseconds");
-    let since_last_attempt = Millis::try_from(now - state.retry_timer().last_attempted_at())
-      .expect("duration since last attempt should be less than u64::MAX milliseconds");
-    let until_next_attempt = state.retry_timer()
-                                  .next_attempt_at()
-                                  .checked_duration_since(&now)
-                                  .map(|until| {
-                                    Millis::try_from(until)
-          .expect("duration until next attempt should be less than u64::MAX milliseconds")
-                                  });
+    let since_first_attempt = now - state.retry_timer().first_attempted_at();
+    let since_last_attempt = now - state.retry_timer().last_attempted_at();
+    let next = state.retry_timer().next_attempt_at();
+    let until_next_attempt = if next > now { Some(next - now) } else { None };
     let msg_should_be = if msg.data().ty == Type::Con {
                           "acknowledged"
                         } else {
@@ -64,10 +52,7 @@ pub trait Buf<P>
   }
 
   /// Send all messages that need to be sent
-  fn attempt_all<E>(&mut self,
-                    now: Instant<P::Clock>,
-                    effects: &mut P::Effects)
-                    -> Result<(), Error<E>> {
+  fn attempt_all<E>(&mut self, now: Instant, effects: &mut P::Effects) -> Result<(), Error<E>> {
     self.iter_mut().for_each(|(state, msg)| {
                      let dbg = Self::debug(now, state, msg);
                      match state.timer().what_should_i_do(now) {
@@ -95,7 +80,7 @@ pub trait Buf<P>
   }
 
   /// We saw a response and should remove all tracking of a token (if we have any)
-  fn forget(&mut self, now: Instant<P::Clock>, effects: &mut P::Effects, token: Token) {
+  fn forget(&mut self, now: Instant, effects: &mut P::Effects, token: Token) {
     match self.iter()
               .enumerate()
               .find(|(_, (_, msg))| msg.data().token == token)
@@ -118,7 +103,7 @@ pub trait Buf<P>
 
   /// We saw an ACK and should transition the retry state for matching outbound
   /// CONs to the "acked" state
-  fn mark_acked(&mut self, now: Instant<P::Clock>, effects: &mut P::Effects, token: Token) {
+  fn mark_acked(&mut self, now: Instant, effects: &mut P::Effects, token: Token) {
     let found = self.iter_mut().find(|(_, msg)| msg.data().token == token);
 
     match found {
@@ -157,7 +142,7 @@ pub trait Buf<P>
   }
 
   /// We saw a RESET regarding token `token`
-  fn mark_reset(&mut self, now: Instant<P::Clock>, effects: &mut P::Effects, token: Token) {
+  fn mark_reset(&mut self, now: Instant, effects: &mut P::Effects, token: Token) {
     let found = self.iter().find(|(_, msg)| msg.data().token == token);
 
     match found {
@@ -185,7 +170,7 @@ pub trait Buf<P>
   ///
   /// May invoke `mark_acked` & `forget`
   fn maybe_seen_response<E>(&mut self,
-                            now: Instant<P::Clock>,
+                            now: Instant,
                             effects: &mut P::Effects,
                             msg: Addrd<&platform::Message<P>>)
                             -> Result<(), Error<E>> {
@@ -219,7 +204,7 @@ pub trait Buf<P>
   /// Called when a message of any kind is sent,
   /// and may store it to be retried in the future
   fn store_retryables<E>(&mut self,
-                         now: Instant<P::Clock>,
+                         now: Instant,
                          effects: &mut P::Effects,
                          msg: &Addrd<platform::Message<P>>,
                          config: Config)
@@ -270,20 +255,18 @@ pub trait Buf<P>
 }
 
 impl<T, P> Buf<P> for T
-  where T: Array<Item = (State<P::Clock>, Addrd<platform::Message<P>>)>,
+  where T: Array<Item = (State, Addrd<platform::Message<P>>)>,
         P: PlatformTypes
 {
 }
 
 /// The state of a message stored in the retry [buffer](Buf)
-#[derive(PartialEq, Eq, Debug)]
-pub enum State<C>
-  where C: Clock
-{
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum State {
   /// A message that is not an un-acked CON
   ///
   /// (meaning the retry strategy will never change)
-  Just(RetryTimer<C>),
+  Just(RetryTimer),
   /// A message that is an un-acked CON
   ///
   /// This means that when it is acked,
@@ -292,7 +275,7 @@ pub enum State<C>
   /// [acked CON retry strategy](crate::config::Con.acked_retry_strategy).
   ConPreAck {
     /// The current (unacked) retry state
-    timer: RetryTimer<C>,
+    timer: RetryTimer,
     /// The strategy to use once the message is acked
     post_ack_strategy: Strategy,
     /// The max number of retry attempts for the post-ack state
@@ -300,55 +283,33 @@ pub enum State<C>
   },
 }
 
-impl<C> State<C> where C: Clock
-{
+impl State {
   /// Gets the current in-use retry timer
-  pub fn retry_timer(&self) -> &RetryTimer<C> {
+  pub fn retry_timer(&self) -> &RetryTimer {
     match self {
       | Self::Just(r) => r,
       | Self::ConPreAck { timer, .. } => timer,
     }
   }
-}
 
-impl<C> Copy for State<C> where C: Clock {}
-impl<C> Clone for State<C> where C: Clock
-{
-  fn clone(&self) -> Self {
+  fn new(time: Instant, strat: Strategy, max_attempts: Attempts) -> Self {
+    Self::Just(RetryTimer::new(time, strat, max_attempts))
+  }
+
+  fn timer(&mut self) -> &mut RetryTimer {
     match self {
-      | Self::Just(t) => Self::Just(*t),
-      | Self::ConPreAck { timer,
-                          post_ack_strategy,
-                          post_ack_max_attempts, } => {
-        Self::ConPreAck { timer: *timer,
-                          post_ack_strategy: *post_ack_strategy,
-                          post_ack_max_attempts: *post_ack_max_attempts }
-      },
+      | Self::Just(t) => t,
+      | Self::ConPreAck { timer, .. } => timer,
     }
   }
 }
 
-impl<C> Default for State<C> where C: Clock
-{
+impl Default for State {
   fn default() -> Self {
     Self::new(Instant::new(0),
               Strategy::Delay { min: Milliseconds(0),
                                 max: Milliseconds(0) },
               Attempts::default())
-  }
-}
-
-impl<C> State<C> where C: Clock
-{
-  fn new(time: Instant<C>, strat: Strategy, max_attempts: Attempts) -> Self {
-    Self::Just(RetryTimer::new(time, strat, max_attempts))
-  }
-
-  fn timer(&mut self) -> &mut RetryTimer<C> {
-    match self {
-      | Self::Just(t) => t,
-      | Self::ConPreAck { timer, .. } => timer,
-    }
   }
 }
 
@@ -472,7 +433,6 @@ impl<P, E, Inner, Buffer> Step<P> for Retry<Inner, Buffer>
 
 #[cfg(test)]
 mod tests {
-  use embedded_time::duration::Milliseconds;
   use tinyvec::array_vec;
   use toad_msg::{Code, Type};
 
@@ -483,7 +443,7 @@ mod tests {
   use crate::step::test::test_step;
   use crate::test::{self, ClockMock, Platform as P};
 
-  type Retry<S> = super::Retry<S, Vec<(State<ClockMock>, Addrd<platform::Message<P>>)>>;
+  type Retry<S> = super::Retry<S, Vec<(State, Addrd<platform::Message<P>>)>>;
 
   fn snap_time(config: Config, time: u64) -> test::Snapshot {
     test::Snapshot { config,
@@ -554,8 +514,7 @@ mod tests {
     let token: &'static Token = unsafe { core::mem::transmute::<_, _>(&token) };
     s.inner()
      .set_poll_resp(|_, Snapshot { time, .. }, _, _, _| {
-       let time: u64 = Milliseconds::try_from(time.duration_since_epoch()).unwrap()
-                                                                          .0;
+       let time: u64 = time.duration_since_epoch().0;
 
        let mut rep = test::msg!(ACK EMPTY x.x.x.x:0000);
        rep.as_mut().token = *token;
@@ -676,8 +635,7 @@ mod tests {
 
     s.inner()
      .set_poll_resp(|_, Snapshot { time, .. }, _, token, _| {
-       let time: u64 = Milliseconds::try_from(time.duration_since_epoch()).unwrap()
-                                                                          .0;
+       let time: u64 = time.duration_since_epoch().0;
 
        let mut rst = test::msg!(RESET x.x.x.x:0000);
        rst.as_mut().token = token;
@@ -688,8 +646,7 @@ mod tests {
        }
      })
      .set_poll_req(|_, Snapshot { time, .. }, _| {
-       let time: u64 = Milliseconds::try_from(time.duration_since_epoch()).unwrap()
-                                                                          .0;
+       let time: u64 = time.duration_since_epoch().0;
 
        let mut rst = test::msg!(RESET x.x.x.x:0000);
        rst.as_mut().token = *token_c;
@@ -780,8 +737,7 @@ mod tests {
     let token = Token(array_vec![1, 2, 3]);
     let token: &'static Token = unsafe { core::mem::transmute::<_, _>(&token) };
     s.inner().set_poll_req(|_, Snapshot { time, .. }, _| {
-               let time: u64 = Milliseconds::try_from(time.duration_since_epoch()).unwrap()
-                                                                                  .0;
+               let time: u64 = time.duration_since_epoch().0;
 
                let mut ack = test::msg!(ACK EMPTY x.x.x.x:0000);
                ack.as_mut().token = *token;
@@ -853,8 +809,7 @@ mod tests {
     let token: &'static Token = unsafe { core::mem::transmute::<_, _>(&token) };
     s.inner()
      .set_poll_resp(|_, Snapshot { time, .. }, _, _, _| {
-       let time: u64 = Milliseconds::try_from(time.duration_since_epoch()).unwrap()
-                                                                          .0;
+       let time: u64 = time.duration_since_epoch().0;
 
        let mut rep = test::msg!(NON {2 . 04} x.x.x.x:0000);
        rep.as_mut().token = *token;
