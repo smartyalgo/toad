@@ -49,7 +49,7 @@ toad-string = {version = "0.2.0", default_features = false}
 toad-msg = "0.18.1"
 toad-macros = "0.2.0"
 log = "0.4"
-tinyvec = { version = "1.5", default_features = false, features = ["alloc"] }
+tinyvec = { version = "1.5", default_features = false, features = ["alloc", "rustc_1_55"] }
 no-std-net = "0.6"
 embedded-time = "0.12"
 nb = "1"

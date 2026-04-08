@@ -23,4 +23,4 @@ test = []
 docs = []
 
 [dependencies]
-tinyvec = {version = "1.5", default_features = false, features = ["alloc"]}
+tinyvec = {version = "1.5", default_features = false, features = ["alloc", "rustc_1_55"]}

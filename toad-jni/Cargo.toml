@@ -23,7 +23,7 @@ docs = []
 [dependencies]
 nb = "1"
 no-std-net = "0.6"
-tinyvec = {version = "1.5", default_features = false, features = ["alloc"]}
+tinyvec = {version = "1.5", default_features = false, features = ["alloc", "rustc_1_55"]}
 toad-msg = "0.18.1"
 toad = "0.19.1"
 jni = {version = "0.21.1", features = ["invocation"]}

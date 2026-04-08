@@ -47,7 +47,7 @@ name = "collections"
 harness = false
 
 [dependencies]
-tinyvec = {version = "1.5", default_features = false, features = ["alloc"]}
+tinyvec = {version = "1.5", default_features = false, features = ["alloc", "rustc_1_55"]}
 toad-macros = "0.2.0"
 blake2 = "0.10"
 toad-map = {version = "0.2.3", default_features = false}
