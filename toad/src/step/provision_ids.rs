@@ -462,7 +462,7 @@ mod test {
 
   #[test]
   fn seen_should_remove_oldest_addr_when_new_addr_would_exceed_capacity() {
-    type Ids = ArrayVec<[Stamped<ClockMock, IdWithDefault>; 16]>;
+    type Ids = ArrayVec<[Stamped<IdWithDefault>; 16]>;
     type IdsByAddr = ArrayVec<[(SocketAddrWithDefault, Ids); 2]>;
     type Step = super::ProvisionIds<P, (), IdsByAddr>;
 
@@ -483,7 +483,7 @@ mod test {
         &mut effs,
         s,
         cfg,
-        ClockMock::instant(1),
+        ClockMock::instant(1_000),
         test::dummy_addr_2(),
         Id(1),
       );
@@ -491,7 +491,7 @@ mod test {
         &mut effs,
         s,
         cfg,
-        ClockMock::instant(2),
+        ClockMock::instant(2_000),
         test::dummy_addr(),
         Id(2),
       );
@@ -499,7 +499,7 @@ mod test {
         &mut effs,
         s,
         cfg,
-        ClockMock::instant(3),
+        ClockMock::instant(3_000),
         test::dummy_addr_3(),
         Id(1),
       );
@@ -513,7 +513,7 @@ mod test {
 
   #[test]
   fn seen_should_remove_empty_addr_when_new_addr_would_exceed_capacity() {
-    type Ids = ArrayVec<[Stamped<ClockMock, IdWithDefault>; 16]>;
+    type Ids = ArrayVec<[Stamped<IdWithDefault>; 16]>;
     type IdsByAddr = ArrayVec<[(SocketAddrWithDefault, Ids); 2]>;
     type Step = super::ProvisionIds<P, (), IdsByAddr>;
 
@@ -554,7 +554,7 @@ mod test {
 
   #[test]
   fn seen_should_remove_oldest_id_when_about_to_exceed_capacity() {
-    type Ids = ArrayVec<[Stamped<ClockMock, IdWithDefault>; 2]>;
+    type Ids = ArrayVec<[Stamped<IdWithDefault>; 2]>;
     type IdsByAddr = ArrayVec<[(SocketAddrWithDefault, Ids); 1]>;
     type Step = super::ProvisionIds<P, (), IdsByAddr>;
 
@@ -607,12 +607,6 @@ mod test {
     let step = Step::default();
     let cfg = Config::default();
     let exchange_lifetime_micros = cfg.exchange_lifetime_millis() * 1_000;
-
-    // This test assumes that the clock considers 1 "tick" to be 1 microsecond.
-    assert_eq!(
-      Microseconds::try_from(ClockMock::instant(1).duration_since_epoch()),
-      Ok(Microseconds(1u64))
-    );
 
     step.seen.map_mut(|s| {
       Step::seen(

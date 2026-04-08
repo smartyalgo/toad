@@ -42,7 +42,7 @@ pub mod runtime {
   pub type ProvisionIds<P, M, A, S> = provision_ids::ProvisionIds<
     P,
     S,
-    Map<M, SocketAddrWithDefault, Array<A, Stamped<Clock<P>, IdWithDefault>>>,
+    Map<M, SocketAddrWithDefault, Array<A, Stamped<IdWithDefault>>>,
   >;
   #[allow(missing_docs)]
   pub type Observe<P, A, S> = observe::Observe<
@@ -479,7 +479,7 @@ pub mod test {
 
   pub fn default_snapshot() -> platform::Snapshot<test::Platform> {
     platform::Snapshot {
-      time: ClockMock::new().try_now().unwrap(),
+      time: ClockMock::instant(0),
       recvd_dgram: Some(crate::net::Addrd(
         Default::default(),
         crate::test::dummy_addr(),

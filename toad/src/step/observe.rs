@@ -711,7 +711,7 @@ mod tests {
         ({|step: &Observe<Dummy>| {
           // Inner will yield a Register request,
           // this should add it to subscribtions list
-          step.poll_req(&Snapshot { time: ClockMock::new().try_now().unwrap(),
+          step.poll_req(&Snapshot { time: ClockMock::instant(0),
                          recvd_dgram: None,
                          config: Default::default() }, &mut Default::default()).unwrap().unwrap()
         }}),
@@ -733,11 +733,11 @@ mod tests {
       WHEN response_to_subscriber_is_sent [
         // Store 2 subscriptions
         (inner.poll_req = { poll_req_emitting_single_register_request(21) }),
-        ({|step: &Observe<Dummy>| step.poll_req(&Snapshot { time: ClockMock::new().try_now().unwrap(),
+        ({|step: &Observe<Dummy>| step.poll_req(&Snapshot { time: ClockMock::instant(0),
                          recvd_dgram: None,
                          config: Default::default() }, &mut Default::default()).unwrap().unwrap()}),
         (inner.poll_req = { poll_req_emitting_single_register_request(22) }),
-        ({|step: &Observe<Dummy>| step.poll_req(&Snapshot { time: ClockMock::new().try_now().unwrap(),
+        ({|step: &Observe<Dummy>| step.poll_req(&Snapshot { time: ClockMock::instant(0),
                          recvd_dgram: None,
                          config: Default::default() }, &mut Default::default()).unwrap().unwrap()})
       ]
@@ -762,7 +762,7 @@ mod tests {
       WHEN client_subscribes_and_unrelated_event_fires [
         (inner.poll_req = { poll_req_emitting_single_register_request(3) }),
         ({|step: &Observe<Dummy>| {
-          step.poll_req(&Snapshot { time: test::ClockMock::new().try_now().unwrap(),
+          step.poll_req(&Snapshot { time: test::ClockMock::instant(0),
                          recvd_dgram: None,
                          config: crate::config::Config::default() }, &mut Default::default()).unwrap().unwrap()
         }}),
@@ -778,13 +778,13 @@ mod tests {
       WHEN client_subscribes_and_multiple_events_fire [
         (inner.poll_req = { poll_req_emitting_single_register_request(41) }),
         ({|step: &Observe<Dummy>| {
-          step.poll_req(&Snapshot { time: test::ClockMock::new().try_now().unwrap(),
+          step.poll_req(&Snapshot { time: test::ClockMock::instant(0),
                          recvd_dgram: None,
                          config: crate::config::Config::default() }, &mut Default::default()).unwrap().unwrap()
         }}),
         ({|step: &Observe<Dummy>| step.notify("foo/bar", &mut vec![]).unwrap()}),
         ({|step: &Observe<Dummy>| {
-          step.poll_req(&Snapshot { time: test::ClockMock::new().try_now().unwrap(),
+          step.poll_req(&Snapshot { time: test::ClockMock::instant(0),
                          recvd_dgram: None,
                          config: crate::config::Config::default() }, &mut Default::default()).unwrap().unwrap()
         }}),

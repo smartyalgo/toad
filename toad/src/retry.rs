@@ -12,7 +12,7 @@ use crate::time::{Instant, Millis, Milliseconds};
 ///
 /// ```
 /// use toad::retry;
-/// use toad::time::Milliseconds;
+/// use toad::time::{Clock, Milliseconds};
 ///
 /// # main();
 /// fn main() {

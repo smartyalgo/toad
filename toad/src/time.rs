@@ -11,7 +11,7 @@ impl core::ops::Add for Millis {
   type Output = Self;
 
   fn add(self, rhs: Self) -> Self {
-    Millis(self.0 + rhs.0)
+    Milliseconds(self.0 + rhs.0)
   }
 }
 
@@ -19,7 +19,7 @@ impl core::ops::Sub for Millis {
   type Output = Self;
 
   fn sub(self, rhs: Self) -> Self {
-    Millis(self.0.saturating_sub(rhs.0))
+    Milliseconds(self.0.saturating_sub(rhs.0))
   }
 }
 
@@ -27,7 +27,13 @@ impl core::ops::Mul<u64> for Millis {
   type Output = Self;
 
   fn mul(self, rhs: u64) -> Self {
-    Millis(self.0 * rhs)
+    Milliseconds(self.0 * rhs)
+  }
+}
+
+impl<T: core::fmt::Display> core::fmt::Display for Milliseconds<T> {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    write!(f, "{}", self.0)
   }
 }
 
@@ -47,7 +53,7 @@ impl Instant {
 
   /// Duration elapsed since the epoch, in milliseconds
   pub fn duration_since_epoch(self) -> Millis {
-    Millis(self.0)
+    Milliseconds(self.0)
   }
 }
 
@@ -63,7 +69,7 @@ impl core::ops::Sub for Instant {
   type Output = Millis;
 
   fn sub(self, rhs: Self) -> Millis {
-    Millis(self.0.saturating_sub(rhs.0))
+    Milliseconds(self.0.saturating_sub(rhs.0))
   }
 }
 
