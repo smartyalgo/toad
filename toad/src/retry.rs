@@ -72,7 +72,7 @@ where
           .map(|Milliseconds(ms)| rand_chacha::ChaCha8Rng::seed_from_u64(ms))
           .unwrap();
 
-        Milliseconds(rand.gen_range(strategy.range()))
+        Milliseconds(rand.random_range(strategy.range()))
       } else {
         Milliseconds(*strategy.range().start())
       },

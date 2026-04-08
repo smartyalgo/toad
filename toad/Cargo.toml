@@ -53,8 +53,8 @@ tinyvec = { version = "1.5", default_features = false, features = ["alloc"] }
 no-std-net = "0.6"
 embedded-time = "0.12"
 nb = "1"
-rand = { version = "0.8", default_features = false }
-rand_chacha = { version = "0.3", default_features = false }
+rand = { version = "0.9", default_features = false }
+rand_chacha = { version = "0.9", default_features = false }
 openssl = { version = "0.10", optional = true }
 paste = "1.0.9"
 naan = "0.1.30"
