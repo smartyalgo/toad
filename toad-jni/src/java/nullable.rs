@@ -7,9 +7,7 @@ use crate::java;
 /// potential NullPointerExceptions.
 pub struct Nullable<T>(java::lang::Object, PhantomData<T>);
 
-impl<T> Nullable<T>
-where
-  T: java::Class,
+impl<T> Nullable<T> where T: java::Class
 {
   /// Convert this to [`Option`]`<T>`, invoking [`java::Object::upcast`]
   /// _only_ if the object reference is non-null.
@@ -22,16 +20,12 @@ where
   }
 }
 
-impl<T> java::Class for Nullable<T>
-where
-  T: java::Class,
+impl<T> java::Class for Nullable<T> where T: java::Class
 {
   const PATH: &'static str = T::PATH;
 }
 
-impl<T> java::Object for Nullable<T>
-where
-  T: java::Class,
+impl<T> java::Object for Nullable<T> where T: java::Class
 {
   fn upcast(_: &mut java::Env, jobj: java::lang::Object) -> Self {
     Self(jobj, PhantomData)

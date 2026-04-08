@@ -27,11 +27,8 @@ impl StandardProtocolFamily {
 
 impl java::Object for StandardProtocolFamily {
   fn upcast(e: &mut java::Env, jobj: java::lang::Object) -> Self {
-    let (inet, inet6, unix) = (
-      Self::INet.downcast(e),
-      Self::INet6.downcast(e),
-      Self::Unix.downcast(e),
-    );
+    let (inet, inet6, unix) =
+      (Self::INet.downcast(e), Self::INet6.downcast(e), Self::Unix.downcast(e));
     if jobj.equals(e, &inet) {
       Self::INet
     } else if jobj.equals(e, &inet6) {

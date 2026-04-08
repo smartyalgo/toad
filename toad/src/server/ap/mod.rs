@@ -16,46 +16,37 @@ pub(crate) use inner::*;
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub struct Respond<P>
-where
-  P: PlatformTypes,
+  where P: PlatformTypes
 {
   pub code: Code,
   pub payload: P::MessagePayload,
   pub etag: Option<P::MessageOptionBytes>,
 }
 
-impl<P> Clone for Respond<P>
-where
-  P: PlatformTypes,
+impl<P> Clone for Respond<P> where P: PlatformTypes
 {
   fn clone(&self) -> Self {
-    Respond {
-      code: self.code,
-      payload: self.payload.clone(),
-      etag: self.etag.clone(),
-    }
+    Respond { code: self.code,
+              payload: self.payload.clone(),
+              etag: self.etag.clone() }
   }
 }
 
-impl<P> PartialEq for Respond<P>
-where
-  P: PlatformTypes,
+impl<P> PartialEq for Respond<P> where P: PlatformTypes
 {
   fn eq(&self, other: &Self) -> bool {
     self.code == other.code && self.payload == other.payload && self.etag == other.etag
   }
 }
 
-impl<P> core::fmt::Debug for Respond<P>
-where
-  P: PlatformTypes,
+impl<P> core::fmt::Debug for Respond<P> where P: PlatformTypes
 {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.debug_struct("Respond")
-      .field("code", &self.code)
-      .field("payload", &self.payload)
-      .field("etag", &self.etag)
-      .finish()
+     .field("code", &self.code)
+     .field("payload", &self.payload)
+     .field("etag", &self.etag)
+     .finish()
   }
 }
 
@@ -63,59 +54,46 @@ where
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub struct Hydrate<P>
-where
-  P: PlatformTypes,
+  where P: PlatformTypes
 {
   pub req: Addrd<Req<P>>,
   pub path: <P as PlatformTypes>::MessageOptionMapOptionValues,
   pub path_ix: usize,
 }
 
-impl<P> Hydrate<P>
-where
-  P: PlatformTypes,
+impl<P> Hydrate<P> where P: PlatformTypes
 {
   /// Construct a [`Hydrate`] from [`Addrd`]`<`[`Req`]`>`
   pub fn from_request(req: Addrd<Req<P>>) -> Self {
-    Self {
-      path: req.data().msg().get(PATH).cloned().unwrap_or_default(),
-      path_ix: 0,
-      req,
-    }
+    Self { path: req.data().msg().get(PATH).cloned().unwrap_or_default(),
+           path_ix: 0,
+           req }
   }
 }
 
-impl<P> Clone for Hydrate<P>
-where
-  P: PlatformTypes,
+impl<P> Clone for Hydrate<P> where P: PlatformTypes
 {
   fn clone(&self) -> Self {
-    Hydrate {
-      req: self.req.clone(),
-      path_ix: self.path_ix,
-      path: self.path.clone(),
-    }
+    Hydrate { req: self.req.clone(),
+              path_ix: self.path_ix,
+              path: self.path.clone() }
   }
 }
 
-impl<P> PartialEq for Hydrate<P>
-where
-  P: PlatformTypes,
+impl<P> PartialEq for Hydrate<P> where P: PlatformTypes
 {
   fn eq(&self, other: &Self) -> bool {
     self.req == other.req && self.path == other.path
   }
 }
 
-impl<P> core::fmt::Debug for Hydrate<P>
-where
-  P: PlatformTypes,
+impl<P> core::fmt::Debug for Hydrate<P> where P: PlatformTypes
 {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.debug_struct("Hydrate")
-      .field("req", &self.req)
-      .field("path", &self.path)
-      .finish()
+     .field("req", &self.req)
+     .field("path", &self.path)
+     .finish()
   }
 }
 
@@ -232,16 +210,14 @@ where
 /// assert_eq!(reject_unchanged, Ap::reject_hydrated(Addrd(req(), addr)));
 /// ```
 pub struct Ap<S, P, T, E>(pub(crate) ApInner<S, P, T, E>)
-where
-  S: ApState,
-  P: PlatformTypes;
+  where S: ApState,
+        P: PlatformTypes;
 
 impl<S, P, T, E> Clone for Ap<S, P, T, E>
-where
-  S: ApState,
-  P: PlatformTypes,
-  E: Clone,
-  T: Clone,
+  where S: ApState,
+        P: PlatformTypes,
+        E: Clone,
+        T: Clone
 {
   fn clone(&self) -> Self {
     Self(self.0.clone())
@@ -249,11 +225,10 @@ where
 }
 
 impl<S, P, T, E> core::fmt::Debug for Ap<S, P, T, E>
-where
-  S: ApState,
-  P: PlatformTypes,
-  E: core::fmt::Debug,
-  T: core::fmt::Debug,
+  where S: ApState,
+        P: PlatformTypes,
+        E: core::fmt::Debug,
+        T: core::fmt::Debug
 {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.debug_tuple("Ap").field(&self.0).finish()
@@ -261,11 +236,10 @@ where
 }
 
 impl<S, P, T, E> PartialEq for Ap<S, P, T, E>
-where
-  S: ApState,
-  P: PlatformTypes,
-  E: PartialEq,
-  T: PartialEq,
+  where S: ApState,
+        P: PlatformTypes,
+        E: PartialEq,
+        T: PartialEq
 {
   fn eq(&self, other: &Self) -> bool {
     self.0 == other.0
@@ -273,9 +247,8 @@ where
 }
 
 impl<P, T, E> Ap<Unhydrated, P, T, E>
-where
-  P: PlatformTypes,
-  E: core::fmt::Debug,
+  where P: PlatformTypes,
+        E: core::fmt::Debug
 {
   /// Construct an `Ap` in an `Ok` state
   pub fn ok(t: T) -> Self {
@@ -292,9 +265,8 @@ where
 }
 
 impl<P, T, Error> Ap<CompleteWhenHydrated, P, T, Error>
-where
-  P: PlatformTypes,
-  Error: core::fmt::Debug,
+  where P: PlatformTypes,
+        Error: core::fmt::Debug
 {
   /// Construct an `Ap` that will reject the incoming
   /// request.
@@ -315,19 +287,17 @@ where
 }
 
 impl<T, P, E> Ap<Hydrated, P, T, E>
-where
-  P: PlatformTypes,
-  E: core::fmt::Debug,
+  where P: PlatformTypes,
+        E: core::fmt::Debug
 {
   /// Use a function `F` (`T -> Ap<B, E>`) to transform the data contained in `Ap`
   /// and combine the result with self.
   ///
   /// The function will only be called if this is [`Ap::ok`] or [`Ap::ok_hydrated`].
   pub fn bind_hydrated<F, S2, B>(self, f: F) -> Ap<<Hydrated as state::Combine<S2>>::Out, P, B, E>
-  where
-    F: FnOnce(T, &Addrd<Req<P>>) -> Ap<S2, P, B, E>,
-    S2: ApState,
-    Hydrated: state::Combine<S2>,
+    where F: FnOnce(T, &Addrd<Req<P>>) -> Ap<S2, P, B, E>,
+          S2: ApState,
+          Hydrated: state::Combine<S2>
   {
     match self.try_unwrap_ok_hydrated() {
       | Ok((t, Hydrate { req, .. })) => f(t, &req).hydrate(req).coerce_state(),
@@ -347,14 +317,12 @@ where
 }
 
 impl<P, T, E> Ap<Complete, P, T, E>
-where
-  P: PlatformTypes,
-  E: core::fmt::Debug,
+  where P: PlatformTypes,
+        E: core::fmt::Debug
 {
   /// Coerce the state type to any other (this only applies to `Ap`s which are known to be [`Complete`].)
   pub fn pretend<S>(self) -> Ap<S, P, T, E>
-  where
-    S: ApState,
+    where S: ApState
   {
     self.coerce_state()
   }
@@ -376,10 +344,9 @@ where
 }
 
 impl<S, P, T, E> Ap<S, P, T, E>
-where
-  P: PlatformTypes,
-  S: ApState,
-  E: core::fmt::Debug,
+  where P: PlatformTypes,
+        S: ApState,
+        E: core::fmt::Debug
 {
   /// Is this [`Ap::ok`] or [`Ap::ok_hydrated`]?
   pub fn is_ok(&self) -> bool {
@@ -497,8 +464,7 @@ where
   /// ok_to_err(ap());
   /// ```
   pub fn pipe<F, R>(self, f: F) -> R
-  where
-    F: FnOnce(Self) -> R,
+    where F: FnOnce(Self) -> R
   {
     f(self)
   }
@@ -507,28 +473,23 @@ where
   /// set the `etag` option for the response before sending.
   pub fn etag(self, etag: P::MessageOptionBytes) -> Self {
     match self.0 {
-      | ApInner::Respond(Respond { code, payload, .. }) => Ap::respond(Respond {
-        code,
-        payload,
-        etag: Some(etag),
-      })
-      .coerce_state(),
-      | ApInner::RespondHydrated(Respond { code, payload, .. }, req) => Ap::respond_hydrated(
-        req,
-        Respond {
-          code,
-          payload,
-          etag: Some(etag),
-        },
-      )
-      .coerce_state(),
+      | ApInner::Respond(Respond { code, payload, .. }) => {
+        Ap::respond(Respond { code,
+                              payload,
+                              etag: Some(etag) }).coerce_state()
+      },
+      | ApInner::RespondHydrated(Respond { code, payload, .. }, req) => {
+        Ap::respond_hydrated(req,
+                             Respond { code,
+                                       payload,
+                                       etag: Some(etag) }).coerce_state()
+      },
       | other => Self(other),
     }
   }
 
   pub(crate) fn coerce_state<S2>(self) -> Ap<S2, P, T, E>
-  where
-    S2: ApState,
+    where S2: ApState
   {
     let inner = match self.0 {
       | ApInner::Phantom(_) => unreachable!(),
@@ -548,8 +509,7 @@ where
   ///
   /// The function will only be called if this is [`Ap::ok`] or [`Ap::ok_hydrated`].
   pub fn map<F, B>(self, f: F) -> Ap<S, P, B, E>
-  where
-    F: FnOnce(T) -> B,
+    where F: FnOnce(T) -> B
   {
     let inner = match self.0 {
       | ApInner::Phantom(_) => unreachable!(),
@@ -569,8 +529,7 @@ where
   ///
   /// The function will only be called if this is [`Ap::err`].
   pub fn map_err<F, B>(self, f: F) -> Ap<S, P, T, B>
-  where
-    F: FnOnce(E) -> B,
+    where F: FnOnce(E) -> B
   {
     let inner = match self.0 {
       | ApInner::Phantom(_) => unreachable!(),
@@ -591,10 +550,9 @@ where
   ///
   /// The function will only be called if this is [`Ap::ok`] or [`Ap::ok_hydrated`].
   pub fn bind<F, S2, B>(self, f: F) -> Ap<<S as state::Combine<S2>>::Out, P, B, E>
-  where
-    F: FnOnce(T) -> Ap<S2, P, B, E>,
-    S2: ApState,
-    S: state::Combine<S2>,
+    where F: FnOnce(T) -> Ap<S2, P, B, E>,
+          S2: ApState,
+          S: state::Combine<S2>
   {
     let inner = match self.0 {
       | ApInner::Phantom(_) => unreachable!(),
@@ -625,10 +583,9 @@ where
   /// ap.bind_discard(do_stuff)
   /// ```
   pub fn bind_discard<S2, F>(self, f: F) -> Self
-  where
-    F: for<'a> FnOnce(&'a T) -> Ap<S2, P, (), E>,
-    S2: ApState,
-    S: Combine<S2>,
+    where F: for<'a> FnOnce(&'a T) -> Ap<S2, P, (), E>,
+          S2: ApState,
+          S: Combine<S2>
   {
     self.bind(|t| f(&t).map(|_| t)).coerce_state()
   }
@@ -666,33 +623,23 @@ mod tests {
     let ok = || Ap::ok(());
     let err = || Ap::err(());
     let ok_hy = || {
-      Ap::ok_hydrated(
-        (),
-        Hydrate {
-          req: Addrd(req(), addr),
-          path: Default::default(),
-          path_ix: 0,
-        },
-      )
+      Ap::ok_hydrated((),
+                      Hydrate { req: Addrd(req(), addr),
+                                path: Default::default(),
+                                path_ix: 0 })
     };
     let reject = || Ap::reject();
     let respond = || {
-      Ap::respond(Respond {
-        code: code::CONTENT,
-        payload: "".into(),
-        etag: None,
-      })
+      Ap::respond(Respond { code: code::CONTENT,
+                            payload: "".into(),
+                            etag: None })
     };
     let reject_hy = || Ap::reject_hydrated(Addrd(req(), addr));
     let respond_hy = || {
-      Ap::respond_hydrated(
-        Addrd(req(), addr),
-        Respond {
-          code: code::CONTENT,
-          payload: "".into(),
-          etag: None,
-        },
-      )
+      Ap::respond_hydrated(Addrd(req(), addr),
+                           Respond { code: code::CONTENT,
+                                     payload: "".into(),
+                                     etag: None })
     };
 
     macro_rules! case {

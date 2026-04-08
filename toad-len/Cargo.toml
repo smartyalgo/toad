@@ -2,6 +2,7 @@
 name = "toad-len"
 version = "0.1.3"
 edition = "2021"
+rust-version = "1.70"
 description = "a `Len` trait that provides capacity and runtime length for collections"
 authors = ["Orion Kindel <cakekindel@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -22,4 +23,4 @@ test = []
 docs = []
 
 [dependencies]
-tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}
+tinyvec = {version = "1.5", default_features = false, features = ["alloc", "rustc_1_55"]}

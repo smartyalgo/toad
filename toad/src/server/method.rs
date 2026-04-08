@@ -8,26 +8,22 @@ use crate::req::Method;
 
 /// Reject request if the code does not match `method`
 pub fn is<P, T, E>(method: Method) -> impl Fn(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-where
-  P: PlatformTypes,
-  E: core::fmt::Debug,
+  where P: PlatformTypes,
+        E: core::fmt::Debug
 {
   is_one_of(array_vec! {_ => method})
 }
 
 /// Reject request if the code is not included in `methods`
-pub fn is_one_of<P, T, E>(
-  methods: ArrayVec<[Method; 5]>,
-) -> impl Fn(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-where
-  P: PlatformTypes,
-  E: core::fmt::Debug,
+pub fn is_one_of<P, T, E>(methods: ArrayVec<[Method; 5]>)
+                          -> impl Fn(Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
+  where P: PlatformTypes,
+        E: core::fmt::Debug
 {
   move |ap| match ap.try_unwrap_ok_hydrated() {
     | Ok((t, h))
-      if methods
-        .iter()
-        .any(|m| m.code() == h.req.data().as_ref().code) =>
+      if methods.iter()
+                .any(|m| m.code() == h.req.data().as_ref().code) =>
     {
       Ap::ok_hydrated(t, h)
     },
@@ -57,36 +53,32 @@ where
 /// assert!(post_request.pipe(method::get).is_rejected());
 /// ```
 pub fn get<P, T, E>(ap: Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-where
-  P: PlatformTypes,
-  E: core::fmt::Debug,
+  where P: PlatformTypes,
+        E: core::fmt::Debug
 {
   ap.pipe(is(Method::GET))
 }
 
 /// Reject non-POST requests
 pub fn post<P, T, E>(ap: Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-where
-  P: PlatformTypes,
-  E: core::fmt::Debug,
+  where P: PlatformTypes,
+        E: core::fmt::Debug
 {
   ap.pipe(is(Method::POST))
 }
 
 /// Reject non-PUT requests
 pub fn put<P, T, E>(ap: Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-where
-  P: PlatformTypes,
-  E: core::fmt::Debug,
+  where P: PlatformTypes,
+        E: core::fmt::Debug
 {
   ap.pipe(is(Method::PUT))
 }
 
 /// Reject non-DELETE requests
 pub fn delete<P, T, E>(ap: Ap<Hydrated, P, T, E>) -> Ap<Hydrated, P, T, E>
-where
-  P: PlatformTypes,
-  E: core::fmt::Debug,
+  where P: PlatformTypes,
+        E: core::fmt::Debug
 {
   ap.pipe(is(Method::DELETE))
 }

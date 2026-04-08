@@ -11,7 +11,7 @@ use toad_map::{InsertError, Map};
 use toad_msg::Id;
 use toad_stem::Stem;
 
-use super::{Step, _try, log};
+use super::{_try, log, Step};
 use crate::config::Config;
 use crate::net::Addrd;
 use crate::platform;
@@ -41,11 +41,9 @@ impl<P: platform::PlatformTypes, A: Array<Item = Stamped<P::Clock, IdWithDefault
   type Ids = A;
 }
 
-impl<
-    P: platform::PlatformTypes,
-    A: Array<Item = Stamped<P::Clock, IdWithDefault>>,
-    const N: usize,
-  > IdsBySocketAddr<P> for ArrayVec<[(SocketAddrWithDefault, A); N]>
+impl<P: platform::PlatformTypes,
+      A: Array<Item = Stamped<P::Clock, IdWithDefault>>,
+      const N: usize> IdsBySocketAddr<P> for ArrayVec<[(SocketAddrWithDefault, A); N]>
 {
   type Ids = A;
 }
@@ -64,10 +62,7 @@ pub struct SocketAddrWithDefault(pub SocketAddr);
 impl Default for SocketAddrWithDefault {
   fn default() -> Self {
     use no_std_net::*;
-    Self(SocketAddr::V4(SocketAddrV4::new(
-      Ipv4Addr::new(0, 0, 0, 0),
-      0,
-    )))
+    Self(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 0)))
   }
 }
 
@@ -101,46 +96,39 @@ pub struct ProvisionIds<P, Inner, SeenIds> {
 }
 
 impl<P, Inner, SeenIds> Default for ProvisionIds<P, Inner, SeenIds>
-where
-  Inner: Default,
-  SeenIds: Default,
+  where Inner: Default,
+        SeenIds: Default
 {
   fn default() -> Self {
-    Self {
-      inner: Default::default(),
-      seen: Default::default(),
-      __p: PhantomData,
-    }
+    Self { inner: Default::default(),
+           seen: Default::default(),
+           __p: PhantomData }
   }
 }
 
 impl<P, Inner, Ids> ProvisionIds<P, Inner, Ids>
-where
-  Ids: IdsBySocketAddr<P>,
-  P: PlatformTypes,
+  where Ids: IdsBySocketAddr<P>,
+        P: PlatformTypes
 {
   fn prune(effs: &mut P::Effects, seen: &mut Ids, now: Instant<P::Clock>, config: Config) {
     for (_, ids) in seen.iter_mut() {
       ids.sort_by_key(|t| t.time());
-      let ix_of_first_id_to_keep = ids
-        .iter()
-        .enumerate()
-        .find(|(_, id)| {
-          now.checked_duration_since(&id.time())
+      let ix_of_first_id_to_keep = ids.iter()
+                                      .enumerate()
+                                      .find(|(_, id)| {
+                                        now.checked_duration_since(&id.time())
             < Some(Milliseconds(config.exchange_lifetime_millis()).into())
-        })
-        .map(|(ix, _)| ix);
+                                      })
+                                      .map(|(ix, _)| ix);
 
       match ix_of_first_id_to_keep {
         | Some(keep_at) if keep_at == 0 => (),
         | Some(keep_at) => {
-          log!(
-            ProvisionIds::prune,
-            effs,
-            log::Level::Trace,
-            "removing {} old irrelevant ids",
-            keep_at
-          );
+          log!(ProvisionIds::prune,
+               effs,
+               log::Level::Trace,
+               "removing {} old irrelevant ids",
+               keep_at);
           for ix in 0..keep_at {
             ids.remove(ix);
           }
@@ -154,13 +142,11 @@ where
   }
 
   fn new_addr(effs: &mut P::Effects, seen: &mut Ids, addr: SocketAddr) {
-    log!(
-      ProvisionIds::new_addr,
-      effs,
-      log::Level::Trace,
-      "haven't seen {:?} before",
-      addr
-    );
+    log!(ProvisionIds::new_addr,
+         effs,
+         log::Level::Trace,
+         "haven't seen {:?} before",
+         addr);
     match seen.insert(SocketAddrWithDefault(addr), Default::default()) {
       | Ok(_) => (),
       | Err(InsertError::CapacityExhausted) => {
@@ -191,13 +177,12 @@ where
   /// Generate a Message ID that has not been used yet with the connection with this socket
   ///
   /// best case O(1), worst case O(n)
-  fn next(
-    effs: &mut P::Effects,
-    seen: &mut Ids,
-    config: Config,
-    time: Instant<P::Clock>,
-    addr: SocketAddr,
-  ) -> Id {
+  fn next(effs: &mut P::Effects,
+          seen: &mut Ids,
+          config: Config,
+          time: Instant<P::Clock>,
+          addr: SocketAddr)
+          -> Id {
     match seen.get_mut(&SocketAddrWithDefault(addr)) {
       | None => {
         Self::new_addr(effs, seen, addr);
@@ -239,25 +224,21 @@ where
           // and adding 1 to the integer at the start of the gap.
           //
           // if the set of ids is literally **EVERY** integer in u16 then this will panic.
-          let (Stamped(IdWithDefault(Id(before_gap)), _), _) = ids
-            .iter()
-            .zip(ahead)
-            .find(
-              |(Stamped(IdWithDefault(Id(cur)), _), Stamped(IdWithDefault(Id(next)), _))| {
-                next - cur > 1
-              },
-            )
-            .unwrap();
+          let (Stamped(IdWithDefault(Id(before_gap)), _), _) =
+            ids.iter()
+               .zip(ahead)
+               .find(|(Stamped(IdWithDefault(Id(cur)), _), Stamped(IdWithDefault(Id(next)), _))| {
+                       next - cur > 1
+                     })
+               .unwrap();
           Id(before_gap + 1)
         };
 
-        log!(
-          ProvisionIds::next,
-          effs,
-          log::Level::Debug,
-          "Generated new {:?}",
-          next
-        );
+        log!(ProvisionIds::next,
+             effs,
+             log::Level::Debug,
+             "Generated new {:?}",
+             next);
         Self::seen(effs, seen, config, time, addr, next);
         next
       },
@@ -265,14 +246,12 @@ where
   }
 
   /// Mark an Id + Addr pair as being seen at `time`.
-  fn seen(
-    effs: &mut P::Effects,
-    seen: &mut Ids,
-    config: Config,
-    now: Instant<P::Clock>,
-    addr: SocketAddr,
-    id: Id,
-  ) {
+  fn seen(effs: &mut P::Effects,
+          seen: &mut Ids,
+          config: Config,
+          now: Instant<P::Clock>,
+          addr: SocketAddr,
+          id: Id) {
     Self::prune(effs, seen, now, config);
 
     match seen.get_mut(&SocketAddrWithDefault(addr)) {
@@ -307,13 +286,11 @@ where
           ids.sort();
         }
 
-        log!(
-          ProvisionIds::seen,
-          effs,
-          log::Level::Trace,
-          "Saw new {:?}",
-          id
-        );
+        log!(ProvisionIds::seen,
+             effs,
+             log::Level::Trace,
+             "Saw new {:?}",
+             id);
         ids.push(Stamped(IdWithDefault(id), now));
       },
     }
@@ -324,24 +301,21 @@ macro_rules! common {
   ($self:expr, $effs:expr, $snap:expr, $req_or_resp:expr) => {{
     let r = $req_or_resp;
     $self.seen.map_mut(|s| {
-      Self::seen(
-        $effs,
-        s,
-        $snap.config,
-        $snap.time,
-        r.addr(),
-        r.data().msg().id,
-      )
-    });
+                Self::seen($effs,
+                           s,
+                           $snap.config,
+                           $snap.time,
+                           r.addr(),
+                           r.data().msg().id)
+              });
     Some(Ok(r))
   }};
 }
 
 impl<P, E: super::Error, Inner, Ids> Step<P> for ProvisionIds<P, Inner, Ids>
-where
-  P: PlatformTypes,
-  Inner: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>,
-  Ids: IdsBySocketAddr<P>,
+  where P: PlatformTypes,
+        Inner: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>,
+        Ids: IdsBySocketAddr<P>
 {
   type PollReq = Addrd<Req<P>>;
   type PollResp = Addrd<Resp<P>>;
@@ -352,40 +326,36 @@ where
     &self.inner
   }
 
-  fn poll_req(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-  ) -> super::StepOutput<Self::PollReq, Self::Error> {
+  fn poll_req(&self,
+              snap: &crate::platform::Snapshot<P>,
+              effects: &mut <P as PlatformTypes>::Effects)
+              -> super::StepOutput<Self::PollReq, Self::Error> {
     let req = self.inner.poll_req(snap, effects);
     let req = _try!(Option<nb::Result>; req);
     common!(self, effects, snap, req)
   }
 
-  fn poll_resp(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-    token: toad_msg::Token,
-    addr: SocketAddr,
-  ) -> super::StepOutput<Self::PollResp, Self::Error> {
+  fn poll_resp(&self,
+               snap: &crate::platform::Snapshot<P>,
+               effects: &mut <P as PlatformTypes>::Effects,
+               token: toad_msg::Token,
+               addr: SocketAddr)
+               -> super::StepOutput<Self::PollResp, Self::Error> {
     let resp = self.inner.poll_resp(snap, effects, token, addr);
     let resp = _try!(Option<nb::Result>; resp);
     common!(self, effects, snap, resp)
   }
 
-  fn before_message_sent(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effs: &mut P::Effects,
-    msg: &mut Addrd<platform::Message<P>>,
-  ) -> Result<(), Self::Error> {
+  fn before_message_sent(&self,
+                         snap: &platform::Snapshot<P>,
+                         effs: &mut P::Effects,
+                         msg: &mut Addrd<platform::Message<P>>)
+                         -> Result<(), Self::Error> {
     self.inner.before_message_sent(snap, effs, msg)?;
 
     if msg.data().id == Id(0) {
-      let id = self
-        .seen
-        .map_mut(|s| Self::next(effs, s, snap.config, snap.time, msg.addr()));
+      let id = self.seen
+                   .map_mut(|s| Self::next(effs, s, snap.config, snap.time, msg.addr()));
       msg.data_mut().id = id;
     }
 
@@ -405,27 +375,22 @@ mod test {
 
   type InnerPollReq = Addrd<Req<test::Platform>>;
   type InnerPollResp = Addrd<Resp<test::Platform>>;
-  type ProvisionIds<S> = super::ProvisionIds<
-    P,
-    S,
-    BTreeMap<SocketAddrWithDefault, Vec<Stamped<ClockMock, IdWithDefault>>>,
-  >;
+  type ProvisionIds<S> = super::ProvisionIds<P,
+                                             S,
+                                             BTreeMap<SocketAddrWithDefault,
+                                                      Vec<Stamped<ClockMock, IdWithDefault>>>>;
 
   fn test_msg(id: Id) -> Addrd<test::Message> {
     use toad_msg::*;
 
-    Addrd(
-      test::Message {
-        id,
-        ty: Type::Con,
-        ver: Default::default(),
-        code: Code::new(0, 0),
-        opts: Default::default(),
-        payload: Payload(vec![]),
-        token: Token(Default::default()),
-      },
-      test::dummy_addr(),
-    )
+    Addrd(test::Message { id,
+                          ty: Type::Con,
+                          ver: Default::default(),
+                          code: Code::new(0, 0),
+                          opts: Default::default(),
+                          payload: Payload(vec![]),
+                          token: Token(Default::default()) },
+          test::dummy_addr())
   }
 
   test_step!(
@@ -483,39 +448,31 @@ mod test {
     let cfg = Config::default();
 
     step.seen.map_mut(|s| {
-      Step::seen(
-        &mut effs,
-        s,
-        cfg,
-        ClockMock::instant(0),
-        test::dummy_addr(),
-        Id(1),
-      );
-      Step::seen(
-        &mut effs,
-        s,
-        cfg,
-        ClockMock::instant(1),
-        test::dummy_addr_2(),
-        Id(1),
-      );
-      Step::seen(
-        &mut effs,
-        s,
-        cfg,
-        ClockMock::instant(2),
-        test::dummy_addr(),
-        Id(2),
-      );
-      Step::seen(
-        &mut effs,
-        s,
-        cfg,
-        ClockMock::instant(3),
-        test::dummy_addr_3(),
-        Id(1),
-      );
-    });
+               Step::seen(&mut effs,
+                          s,
+                          cfg,
+                          ClockMock::instant(0),
+                          test::dummy_addr(),
+                          Id(1));
+               Step::seen(&mut effs,
+                          s,
+                          cfg,
+                          ClockMock::instant(1),
+                          test::dummy_addr_2(),
+                          Id(1));
+               Step::seen(&mut effs,
+                          s,
+                          cfg,
+                          ClockMock::instant(2),
+                          test::dummy_addr(),
+                          Id(2));
+               Step::seen(&mut effs,
+                          s,
+                          cfg,
+                          ClockMock::instant(3),
+                          test::dummy_addr_3(),
+                          Id(1));
+             });
 
     let mut addrs: Vec<_> = step.seen.map_ref(|s| s.iter().map(|(k, _)| k.0).collect());
     addrs.sort();
@@ -534,29 +491,22 @@ mod test {
     let cfg = Config::default();
 
     step.seen.map_mut(|seen| {
-      Map::insert(
-        seen,
-        SocketAddrWithDefault(test::dummy_addr()),
-        Default::default(),
-      )
-      .unwrap();
-      Step::seen(
-        &mut effs,
-        seen,
-        cfg,
-        ClockMock::instant(1),
-        test::dummy_addr_2(),
-        Id(1),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        cfg,
-        ClockMock::instant(3),
-        test::dummy_addr_3(),
-        Id(1),
-      );
-    });
+               Map::insert(seen,
+                           SocketAddrWithDefault(test::dummy_addr()),
+                           Default::default()).unwrap();
+               Step::seen(&mut effs,
+                          seen,
+                          cfg,
+                          ClockMock::instant(1),
+                          test::dummy_addr_2(),
+                          Id(1));
+               Step::seen(&mut effs,
+                          seen,
+                          cfg,
+                          ClockMock::instant(3),
+                          test::dummy_addr_3(),
+                          Id(1));
+             });
 
     let mut addrs: Vec<_> = step.seen.map_ref(|s| s.iter().map(|(k, _)| k.0).collect());
     addrs.sort();
@@ -575,39 +525,33 @@ mod test {
     let cfg = Config::default();
 
     step.seen.map_mut(|seen| {
-      Step::seen(
-        &mut effs,
-        seen,
-        cfg,
-        ClockMock::instant(0),
-        test::dummy_addr(),
-        Id(0),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        cfg,
-        ClockMock::instant(1),
-        test::dummy_addr(),
-        Id(1),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        cfg,
-        ClockMock::instant(2),
-        test::dummy_addr(),
-        Id(2),
-      );
-    });
+               Step::seen(&mut effs,
+                          seen,
+                          cfg,
+                          ClockMock::instant(0),
+                          test::dummy_addr(),
+                          Id(0));
+               Step::seen(&mut effs,
+                          seen,
+                          cfg,
+                          ClockMock::instant(1),
+                          test::dummy_addr(),
+                          Id(1));
+               Step::seen(&mut effs,
+                          seen,
+                          cfg,
+                          ClockMock::instant(2),
+                          test::dummy_addr(),
+                          Id(2));
+             });
 
     let ids: Vec<_> = step.seen.map_ref(|s| {
-      s.get(&SocketAddrWithDefault(test::dummy_addr()))
-        .unwrap()
-        .into_iter()
-        .map(|Stamped(IdWithDefault(id), _)| *id)
-        .collect()
-    });
+                                 s.get(&SocketAddrWithDefault(test::dummy_addr()))
+                                  .unwrap()
+                                  .into_iter()
+                                  .map(|Stamped(IdWithDefault(id), _)| *id)
+                                  .collect()
+                               });
     assert_eq!(ids, vec![Id(1), Id(2)]);
   }
 
@@ -621,45 +565,37 @@ mod test {
     let exchange_lifetime_micros = cfg.exchange_lifetime_millis() * 1_000;
 
     // This test assumes that the clock considers 1 "tick" to be 1 microsecond.
-    assert_eq!(
-      Microseconds::try_from(ClockMock::instant(1).duration_since_epoch()),
-      Ok(Microseconds(1u64))
-    );
+    assert_eq!(Microseconds::try_from(ClockMock::instant(1).duration_since_epoch()),
+               Ok(Microseconds(1u64)));
 
     step.seen.map_mut(|s| {
-      Step::seen(
-        &mut effs,
-        s,
-        cfg,
-        ClockMock::instant(0),
-        test::dummy_addr(),
-        Id(1),
-      );
-      Step::seen(
-        &mut effs,
-        s,
-        cfg,
-        ClockMock::instant(1),
-        test::dummy_addr(),
-        Id(2),
-      );
-      Step::seen(
-        &mut effs,
-        s,
-        cfg,
-        ClockMock::instant(exchange_lifetime_micros + 1_000),
-        test::dummy_addr(),
-        Id(3),
-      );
-    });
+               Step::seen(&mut effs,
+                          s,
+                          cfg,
+                          ClockMock::instant(0),
+                          test::dummy_addr(),
+                          Id(1));
+               Step::seen(&mut effs,
+                          s,
+                          cfg,
+                          ClockMock::instant(1),
+                          test::dummy_addr(),
+                          Id(2));
+               Step::seen(&mut effs,
+                          s,
+                          cfg,
+                          ClockMock::instant(exchange_lifetime_micros + 1_000),
+                          test::dummy_addr(),
+                          Id(3));
+             });
 
     let ids: Vec<_> = step.seen.map_ref(|s| {
-      s.get(&SocketAddrWithDefault(test::dummy_addr()))
-        .unwrap()
-        .iter()
-        .map(|Stamped(IdWithDefault(id), _)| *id)
-        .collect()
-    });
+                                 s.get(&SocketAddrWithDefault(test::dummy_addr()))
+                                  .unwrap()
+                                  .iter()
+                                  .map(|Stamped(IdWithDefault(id), _)| *id)
+                                  .collect()
+                               });
     assert_eq!(ids, vec![Id(3)]);
   }
 
@@ -672,40 +608,32 @@ mod test {
     let time = ClockMock::instant(0);
 
     step.seen.map_mut(|seen| {
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(22),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(1),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(2),
-      );
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(22));
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(1));
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(2));
 
-      let generated = Step::next(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-      );
-      assert_eq!(generated, Id(23))
-    });
+               let generated = Step::next(&mut effs,
+                                          seen,
+                                          Default::default(),
+                                          time,
+                                          test::dummy_addr());
+               assert_eq!(generated, Id(23))
+             });
   }
 
   #[test]
@@ -717,32 +645,26 @@ mod test {
     let time = ClockMock::instant(0);
 
     step.seen.map_mut(|seen| {
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(2),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(u16::MAX),
-      );
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(2));
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(u16::MAX));
 
-      let generated = Step::next(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-      );
-      assert_eq!(generated, Id(1))
-    });
+               let generated = Step::next(&mut effs,
+                                          seen,
+                                          Default::default(),
+                                          time,
+                                          test::dummy_addr());
+               assert_eq!(generated, Id(1))
+             });
   }
 
   #[test]
@@ -754,56 +676,44 @@ mod test {
     let time = ClockMock::instant(0);
 
     step.seen.map_mut(|seen| {
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(1),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(2),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(3),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(5),
-      );
-      Step::seen(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-        Id(u16::MAX),
-      );
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(1));
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(2));
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(3));
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(5));
+               Step::seen(&mut effs,
+                          seen,
+                          Default::default(),
+                          time,
+                          test::dummy_addr(),
+                          Id(u16::MAX));
 
-      let generated = Step::next(
-        &mut effs,
-        seen,
-        Default::default(),
-        time,
-        test::dummy_addr(),
-      );
-      assert_eq!(generated, Id(4))
-    });
+               let generated = Step::next(&mut effs,
+                                          seen,
+                                          Default::default(),
+                                          time,
+                                          test::dummy_addr());
+               assert_eq!(generated, Id(4))
+             });
   }
 
   #[test]
@@ -811,14 +721,12 @@ mod test {
     type Step = ProvisionIds<()>;
     let step = Step::default();
     let id = step.seen.map_mut(|s| {
-      Step::next(
-        &mut vec![],
-        s,
-        Default::default(),
-        ClockMock::instant(0),
-        test::dummy_addr(),
-      )
-    });
+                        Step::next(&mut vec![],
+                                   s,
+                                   Default::default(),
+                                   ClockMock::instant(0),
+                                   test::dummy_addr())
+                      });
     assert_eq!(id, Id(1))
   }
 }

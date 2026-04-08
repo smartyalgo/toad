@@ -2,6 +2,7 @@
 name = "toad-jni"
 version = "0.16.1"
 edition = "2021"
+rust-version = "1.70"
 description = "JNI abstractions and bindings used by the toad ecosystem"
 authors = ["Orion Kindel <cakekindel@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -22,7 +23,7 @@ docs = []
 [dependencies]
 nb = "1"
 no-std-net = "0.6"
-tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}
+tinyvec = {version = "1.5", default_features = false, features = ["alloc", "rustc_1_55"]}
 toad-msg = "0.18.1"
 toad = "0.19.1"
 jni = {version = "0.21.1", features = ["invocation"]}

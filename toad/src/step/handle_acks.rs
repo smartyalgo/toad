@@ -27,10 +27,8 @@ pub struct HandleAcks<S, B> {
 
 impl<S: Default, B: Default> Default for HandleAcks<S, B> {
   fn default() -> Self {
-    Self {
-      buffer: Default::default(),
-      inner: S::default(),
-    }
+    Self { buffer: Default::default(),
+           inner: S::default() }
   }
 }
 
@@ -112,12 +110,11 @@ macro_rules! common {
   }};
 }
 
-impl<
-    P: PlatformTypes,
-    B: Map<Addrd<Token>, ()> + core::fmt::Debug,
-    E: super::Error,
-    S: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>,
-  > Step<P> for HandleAcks<S, B>
+impl<P: PlatformTypes,
+      B: Map<Addrd<Token>, ()> + core::fmt::Debug,
+      E: super::Error,
+      S: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>> Step<P>
+  for HandleAcks<S, B>
 {
   type PollReq = Addrd<Req<P>>;
   type PollResp = Addrd<Resp<P>>;
@@ -128,11 +125,10 @@ impl<
     &self.inner
   }
 
-  fn poll_req(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-  ) -> StepOutput<Self::PollReq, Self::Error> {
+  fn poll_req(&self,
+              snap: &crate::platform::Snapshot<P>,
+              effects: &mut <P as PlatformTypes>::Effects)
+              -> StepOutput<Self::PollReq, Self::Error> {
     let req = exec_inner_step!(self.inner.poll_req(snap, effects), Error::Inner);
 
     match req {
@@ -144,17 +140,14 @@ impl<
     }
   }
 
-  fn poll_resp(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-    token: toad_msg::Token,
-    addr: no_std_net::SocketAddr,
-  ) -> StepOutput<Self::PollResp, Self::Error> {
-    let resp = exec_inner_step!(
-      self.inner.poll_resp(snap, effects, token, addr),
-      Error::Inner
-    );
+  fn poll_resp(&self,
+               snap: &crate::platform::Snapshot<P>,
+               effects: &mut <P as PlatformTypes>::Effects,
+               token: toad_msg::Token,
+               addr: no_std_net::SocketAddr)
+               -> StepOutput<Self::PollResp, Self::Error> {
+    let resp = exec_inner_step!(self.inner.poll_resp(snap, effects, token, addr),
+                                Error::Inner);
 
     match resp {
       | Some(resp) => {
@@ -165,29 +158,26 @@ impl<
     }
   }
 
-  fn on_message_sent(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effects: &mut P::Effects,
-    msg: &Addrd<crate::platform::Message<P>>,
-  ) -> Result<(), Self::Error> {
-    self
-      .inner
-      .on_message_sent(snap, effects, msg)
-      .map_err(Error::Inner)?;
+  fn on_message_sent(&self,
+                     snap: &platform::Snapshot<P>,
+                     effects: &mut P::Effects,
+                     msg: &Addrd<crate::platform::Message<P>>)
+                     -> Result<(), Self::Error> {
+    self.inner
+        .on_message_sent(snap, effects, msg)
+        .map_err(Error::Inner)?;
 
     match msg.data().ty {
-      | Type::Con => self
-        .buffer
-        .map_mut(|buf| buf.insert(msg.as_ref().map(|m| m.token), ()))
-        .recover(|e| {
-          if matches!(e, InsertError::Exists(_)) {
-            Ok(())
-          } else {
-            Err(e)
-          }
-        })
-        .map_err(|_| Error::ConBufferCapacityExhausted),
+      | Type::Con => self.buffer
+                         .map_mut(|buf| buf.insert(msg.as_ref().map(|m| m.token), ()))
+                         .recover(|e| {
+                           if matches!(e, InsertError::Exists(_)) {
+                             Ok(())
+                           } else {
+                             Err(e)
+                           }
+                         })
+                         .map_err(|_| Error::ConBufferCapacityExhausted),
       | _ => Ok(()),
     }
   }
@@ -212,18 +202,14 @@ mod test {
   fn test_message(ty: Type) -> Addrd<test::Message> {
     use toad_msg::*;
 
-    Addrd(
-      test::Message {
-        ver: Default::default(),
-        ty,
-        id: Id(1),
-        code: Code::new(0, 1),
-        token: Token(array_vec!(_ => 1)),
-        payload: Payload(Default::default()),
-        opts: Default::default(),
-      },
-      test::dummy_addr(),
-    )
+    Addrd(test::Message { ver: Default::default(),
+                          ty,
+                          id: Id(1),
+                          code: Code::new(0, 1),
+                          token: Token(array_vec!(_ => 1)),
+                          payload: Payload(Default::default()),
+                          opts: Default::default() },
+          test::dummy_addr())
   }
 
   test_step!(
@@ -291,32 +277,27 @@ mod test {
 
     let sut = HandleAcks::<Mock>::default();
 
-    sut
-      .inner()
-      .init(TestState {
-        token_last_sent: None,
-      })
-      .set_on_message_sent(|mock, _, _, msg| {
-        mock
-          .state
-          .map_mut(|s| s.as_mut().unwrap().token_last_sent = Some(msg.data().token));
-        Ok(())
-      })
-      .set_poll_resp(|mock, _, _, poll_for_token, _| {
-        let mut msg = test::msg!(ACK {2 . 05} x.x.x.x:2222);
+    sut.inner()
+       .init(TestState { token_last_sent: None })
+       .set_on_message_sent(|mock, _, _, msg| {
+         mock.state
+             .map_mut(|s| s.as_mut().unwrap().token_last_sent = Some(msg.data().token));
+         Ok(())
+       })
+       .set_poll_resp(|mock, _, _, poll_for_token, _| {
+         let mut msg = test::msg!(ACK {2 . 05} x.x.x.x:2222);
 
-        let token = mock
-          .state
-          .map_ref(|s| s.as_ref().unwrap().token_last_sent.unwrap());
-        Addrd::data_mut(&mut msg).token = token;
+         let token = mock.state
+                         .map_ref(|s| s.as_ref().unwrap().token_last_sent.unwrap());
+         Addrd::data_mut(&mut msg).token = token;
 
-        assert_eq!(token, poll_for_token);
+         assert_eq!(token, poll_for_token);
 
-        let p = Payload(format!("oink oink!").bytes().collect::<Vec<_>>());
-        Addrd::data_mut(&mut msg).payload = p;
+         let p = Payload(format!("oink oink!").bytes().collect::<Vec<_>>());
+         Addrd::data_mut(&mut msg).payload = p;
 
-        Some(Ok(msg.map(Resp::from)))
-      });
+         Some(Ok(msg.map(Resp::from)))
+       });
 
     let token = Token(array_vec![1, 2, 3, 4]);
 
@@ -337,10 +318,8 @@ mod test {
       | e => panic!("{e:?}"),
     }
 
-    assert_eq!(
-      res.unwrap().unwrap().data().payload_string().unwrap(),
-      format!("oink oink!")
-    );
+    assert_eq!(res.unwrap().unwrap().data().payload_string().unwrap(),
+               format!("oink oink!"));
   }
 
   #[test]
@@ -354,29 +333,24 @@ mod test {
 
     let sut = HandleAcks::<Mock>::default();
 
-    sut
-      .inner()
-      .init(TestState {
-        token_last_sent: None,
-      })
-      .set_on_message_sent(|mock, _, _, msg| {
-        mock
-          .state
-          .map_mut(|s| s.as_mut().unwrap().token_last_sent = Some(msg.data().token));
-        Ok(())
-      })
-      .set_poll_resp(|mock, _, _, poll_for_token, _| {
-        let mut msg = test::msg!(ACK {0 . 00} x.x.x.x:2222);
+    sut.inner()
+       .init(TestState { token_last_sent: None })
+       .set_on_message_sent(|mock, _, _, msg| {
+         mock.state
+             .map_mut(|s| s.as_mut().unwrap().token_last_sent = Some(msg.data().token));
+         Ok(())
+       })
+       .set_poll_resp(|mock, _, _, poll_for_token, _| {
+         let mut msg = test::msg!(ACK {0 . 00} x.x.x.x:2222);
 
-        let token = mock
-          .state
-          .map_ref(|s| s.as_ref().unwrap().token_last_sent.unwrap());
-        Addrd::data_mut(&mut msg).token = token;
+         let token = mock.state
+                         .map_ref(|s| s.as_ref().unwrap().token_last_sent.unwrap());
+         Addrd::data_mut(&mut msg).token = token;
 
-        assert_eq!(token, poll_for_token);
+         assert_eq!(token, poll_for_token);
 
-        Some(Ok(msg.map(Resp::from)))
-      });
+         Some(Ok(msg.map(Resp::from)))
+       });
 
     let token = Token(array_vec![1, 2, 3, 4]);
 

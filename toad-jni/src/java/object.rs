@@ -1,8 +1,17 @@
 use java::{ResultExt, Type};
-use jni::objects::{
-  GlobalRef, JBooleanArray, JByteArray, JCharArray, JDoubleArray, JFloatArray, JIntArray,
-  JLongArray, JObject, JObjectArray, JShortArray, JValue, JValueOwned,
-};
+use jni::objects::{GlobalRef,
+                   JBooleanArray,
+                   JByteArray,
+                   JCharArray,
+                   JDoubleArray,
+                   JFloatArray,
+                   JIntArray,
+                   JLongArray,
+                   JObject,
+                   JObjectArray,
+                   JShortArray,
+                   JValue,
+                   JValueOwned};
 use jni::sys::jobject;
 
 use crate::java;
@@ -13,8 +22,7 @@ use crate::java;
 ///
 /// For more information, see [`java::Type`]
 pub trait Object
-where
-  Self: java::Type,
+  where Self: java::Type
 {
   /// Try to interpret an object as `Self`
   fn upcast(e: &mut java::Env, jobj: java::lang::Object) -> Self;
@@ -27,24 +35,21 @@ where
 
   /// Try to interpret a `JValue` as `Self`
   fn upcast_value_ref<'e>(e: &mut java::Env<'e>, jv: JValue<'e, '_>) -> Self
-  where
-    Self: Sized,
+    where Self: Sized
   {
     java::lang::Object::upcast_value_ref(e, jv).upcast_to::<Self>(e)
   }
 
   /// Try to interpret a `JValueOwned` as `Self`
   fn upcast_value<'e>(e: &mut java::Env<'e>, jv: JValueOwned<'e>) -> Self
-  where
-    Self: Sized,
+    where Self: Sized
   {
     Self::upcast_value_ref(e, (&jv).into())
   }
 
   /// Create a `JValueOwned` from `self`
   fn downcast_value<'e>(self, e: &mut java::Env<'e>) -> JValueOwned<'e>
-  where
-    Self: Sized,
+    where Self: Sized
   {
     self.downcast(e).downcast_value(e)
   }
@@ -71,9 +76,7 @@ impl Object for GlobalRef {
   }
 }
 
-impl<T> Object for Vec<T>
-where
-  T: java::Object,
+impl<T> Object for Vec<T> where T: java::Object
 {
   fn upcast(e: &mut java::Env, jobj: java::lang::Object) -> Self {
     let arr = <&JObjectArray>::from(jobj.as_local());
@@ -85,13 +88,12 @@ where
         let mut els = Vec::new();
         els.resize(len, Default::default());
         e.$get_region(&arr, 0, &mut els).unwrap_java(e);
-        els
-          .into_iter()
-          .map(|b| {
-            let val = b.downcast_value(e);
-            T::upcast_value(e, val)
-          })
-          .collect()
+        els.into_iter()
+           .map(|b| {
+             let val = b.downcast_value(e);
+             T::upcast_value(e, val)
+           })
+           .collect()
       }};
     }
 
@@ -108,30 +110,27 @@ where
         let mut els = Vec::new();
         els.resize(len, 0u8);
         e.get_boolean_array_region(arr, 0, &mut els).unwrap_java(e);
-        els
-          .into_iter()
-          .map(|b| {
-            let val = (b == jni::sys::JNI_TRUE).downcast_value(e);
-            T::upcast_value(e, val)
-          })
-          .collect()
+        els.into_iter()
+           .map(|b| {
+             let val = (b == jni::sys::JNI_TRUE).downcast_value(e);
+             T::upcast_value(e, val)
+           })
+           .collect()
       },
       | _ if jobj.is_instance_of::<Vec<java::lang::Object>>(e) => {
         let mut vec = Vec::new();
 
         (0..len).for_each(|ix| {
-          let obj = e.get_object_array_element(arr, ix as i32).unwrap_java(e);
-          vec.push(java::lang::Object::from_local(e, obj).upcast_to::<T>(e));
-        });
+                  let obj = e.get_object_array_element(arr, ix as i32).unwrap_java(e);
+                  vec.push(java::lang::Object::from_local(e, obj).upcast_to::<T>(e));
+                });
 
         vec
       },
       | _ => {
         let cls = e.get_object_class(&jobj).unwrap_java(e);
-        panic!(
-          "unknown array type {}",
-          java::lang::Object::from_local(e, cls).to_string(e)
-        );
+        panic!("unknown array type {}",
+               java::lang::Object::from_local(e, cls).to_string(e));
       },
     }
   }
@@ -172,15 +171,14 @@ where
       | u16::SIG => go!(new_char_array, set_char_array_region),
       | bool::SIG => go!(new_boolean_array, set_boolean_array_region),
       | _ => {
-        let arr = e
-          .new_object_array(self.len() as i32, java::lang::Object::SIG, JObject::null())
-          .unwrap_java(e);
+        let arr = e.new_object_array(self.len() as i32, java::lang::Object::SIG, JObject::null())
+                   .unwrap_java(e);
         let arr_ref = &arr;
         self.iter().enumerate().for_each(|(ix, o)| {
-          let val = o.downcast_ref(e);
-          e.set_object_array_element(arr_ref, ix as i32, &val)
-            .unwrap_java(e);
-        });
+                                 let val = o.downcast_ref(e);
+                                 e.set_object_array_element(arr_ref, ix as i32, &val)
+                                  .unwrap_java(e);
+                               });
 
         java::lang::Object::from_local(e, arr)
       },
@@ -188,9 +186,7 @@ where
   }
 }
 
-impl<T> Object for T
-where
-  T: java::Primitive,
+impl<T> Object for T where T: java::Primitive
 {
   fn upcast(e: &mut java::Env, jobj: java::lang::Object) -> Self {
     let w = <T as java::Primitive>::PrimitiveWrapper::upcast(e, jobj);
@@ -206,22 +202,19 @@ where
   }
 
   fn upcast_value_ref<'e>(_: &mut java::Env<'e>, jv: JValue<'e, '_>) -> Self
-  where
-    Self: Sized,
+    where Self: Sized
   {
     T::from_jvalue_ref(jv)
   }
 
   fn upcast_value(_: &mut java::Env, jv: JValueOwned) -> Self
-  where
-    Self: Sized,
+    where Self: Sized
   {
     T::from_jvalue(jv)
   }
 
   fn downcast_value<'e>(self, _: &mut java::Env<'e>) -> JValueOwned<'e>
-  where
-    Self: Sized,
+    where Self: Sized
   {
     self.into_jvalue()
   }
@@ -241,22 +234,19 @@ impl Object for () {
   }
 
   fn upcast_value_ref<'e>(_: &mut java::Env<'e>, jv: JValue<'e, '_>) -> Self
-  where
-    Self: Sized,
+    where Self: Sized
   {
     jv.v().unwrap()
   }
 
   fn upcast_value<'e>(_: &mut java::Env<'e>, jv: JValueOwned<'e>) -> Self
-  where
-    Self: Sized,
+    where Self: Sized
   {
     jv.v().unwrap()
   }
 
   fn downcast_value<'e>(self, _: &mut java::Env<'e>) -> JValueOwned<'e>
-  where
-    Self: Sized,
+    where Self: Sized
   {
     JValueOwned::Void
   }

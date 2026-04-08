@@ -2,6 +2,7 @@
 name = "toad-msg"
 version = "0.19.0"
 edition = "2021"
+rust-version = "1.70"
 description = "Low-level CoAP message parsing & serialization"
 authors = ["Orion Kindel <cakekindel@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -46,7 +47,7 @@ name = "collections"
 harness = false
 
 [dependencies]
-tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}
+tinyvec = {version = "1.5", default_features = false, features = ["alloc", "rustc_1_55"]}
 toad-macros = "0.2.0"
 blake2 = "0.10"
 toad-map = {version = "0.2.3", default_features = false}

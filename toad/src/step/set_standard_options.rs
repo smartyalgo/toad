@@ -18,9 +18,7 @@ use crate::resp::Resp;
 #[derive(Debug)]
 pub struct SetStandardOptions<S>(S);
 
-impl<S> Default for SetStandardOptions<S>
-where
-  S: Default,
+impl<S> Default for SetStandardOptions<S> where S: Default
 {
   fn default() -> Self {
     Self(S::default())
@@ -28,10 +26,9 @@ where
 }
 
 impl<P, E, S> Step<P> for SetStandardOptions<S>
-where
-  P: PlatformTypes,
-  E: super::Error,
-  S: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>,
+  where P: PlatformTypes,
+        E: super::Error,
+        S: Step<P, PollReq = Addrd<Req<P>>, PollResp = Addrd<Resp<P>>, Error = E>
 {
   type PollReq = Addrd<Req<P>>;
   type PollResp = Addrd<Resp<P>>;
@@ -42,30 +39,27 @@ where
     &self.0
   }
 
-  fn poll_req(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-  ) -> StepOutput<Self::PollReq, Self::Error> {
+  fn poll_req(&self,
+              snap: &crate::platform::Snapshot<P>,
+              effects: &mut <P as PlatformTypes>::Effects)
+              -> StepOutput<Self::PollReq, Self::Error> {
     self.0.poll_req(snap, effects)
   }
 
-  fn poll_resp(
-    &self,
-    snap: &crate::platform::Snapshot<P>,
-    effects: &mut <P as PlatformTypes>::Effects,
-    token: toad_msg::Token,
-    addr: no_std_net::SocketAddr,
-  ) -> StepOutput<Self::PollResp, Self::Error> {
+  fn poll_resp(&self,
+               snap: &crate::platform::Snapshot<P>,
+               effects: &mut <P as PlatformTypes>::Effects,
+               token: toad_msg::Token,
+               addr: no_std_net::SocketAddr)
+               -> StepOutput<Self::PollResp, Self::Error> {
     self.0.poll_resp(snap, effects, token, addr)
   }
 
-  fn before_message_sent(
-    &self,
-    snap: &platform::Snapshot<P>,
-    effs: &mut P::Effects,
-    msg: &mut Addrd<platform::Message<P>>,
-  ) -> Result<(), Self::Error> {
+  fn before_message_sent(&self,
+                         snap: &platform::Snapshot<P>,
+                         effs: &mut P::Effects,
+                         msg: &mut Addrd<platform::Message<P>>)
+                         -> Result<(), Self::Error> {
     self.0.before_message_sent(snap, effs, msg)?;
 
     let (host, port) = (msg.addr().ip(), msg.addr().port());
@@ -93,18 +87,14 @@ mod test {
   fn test_message(ty: Type) -> Addrd<crate::test::Message> {
     use toad_msg::*;
 
-    Addrd(
-      crate::test::Message {
-        ver: Default::default(),
-        ty,
-        id: Id(1),
-        code: Code::new(1, 1),
-        token: Token(array_vec!(_ => 1)),
-        payload: Payload(Default::default()),
-        opts: Default::default(),
-      },
-      crate::test::dummy_addr(),
-    )
+    Addrd(crate::test::Message { ver: Default::default(),
+                                 ty,
+                                 id: Id(1),
+                                 code: Code::new(1, 1),
+                                 token: Token(array_vec!(_ => 1)),
+                                 payload: Payload(Default::default()),
+                                 opts: Default::default() },
+          crate::test::dummy_addr())
   }
 
   test_step!(

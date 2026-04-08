@@ -109,9 +109,9 @@ pub trait Socket: Sized {
     let addr = addr.to_socket_addrs().unwrap().next().unwrap();
 
     Self::bind_raw(addr).discard(|sock: &Self| match addr.ip() {
-      | ip if ip.is_multicast() => sock.join_multicast(ip),
-      | _ => Ok(()),
-    })
+                          | ip if ip.is_multicast() => sock.join_multicast(ip),
+                          | _ => Ok(()),
+                        })
   }
 
   /// Send a message to a remote address

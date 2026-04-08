@@ -168,10 +168,10 @@ mod test {
   pub fn init<'a>() -> java::Env<'a> {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-      std::env::set_var("FOO", "bar");
-      let args = InitArgsBuilder::new().build().unwrap();
-      toad_jni::global::init_with(JavaVM::new(args).unwrap());
-    });
+          std::env::set_var("FOO", "bar");
+          let args = InitArgsBuilder::new().build().unwrap();
+          toad_jni::global::init_with(JavaVM::new(args).unwrap());
+        });
 
     let jvm = toad_jni::global::jvm();
     jvm.attach_current_thread_permanently().unwrap()
@@ -195,14 +195,11 @@ mod test {
   #[test]
   fn test_arraylist() {
     init();
-    assert_eq!(
-      vec![1i8, 2, 3, 4]
-        .into_iter()
-        .collect::<java::util::ArrayList<i8>>()
-        .into_iter()
-        .collect::<Vec<i8>>(),
-      vec![1, 2, 3, 4]
-    )
+    assert_eq!(vec![1i8, 2, 3, 4].into_iter()
+                                 .collect::<java::util::ArrayList<i8>>()
+                                 .into_iter()
+                                 .collect::<Vec<i8>>(),
+               vec![1, 2, 3, 4])
   }
 
   #[test]
@@ -241,10 +238,9 @@ mod test {
     assert_eq!(System::set_property(e, "foo.bar", "baz"), None);
     assert_eq!(System::get_property(e, "foo.bar"), Some("baz".to_string()));
 
-    let args = vec![8329i32, 3281, 8329 + 3281]
-      .into_iter()
-      .map(|i| i.to_primitive_wrapper(e).downcast(e))
-      .collect();
+    let args = vec![8329i32, 3281, 8329 + 3281].into_iter()
+                                               .map(|i| i.to_primitive_wrapper(e).downcast(e))
+                                               .collect();
     match System::console(e).into_option(e) {
       | Some(c) => {
         c.printf(e, "%d + %d = %d", args);
@@ -262,24 +258,18 @@ mod test {
     let mut env = init();
     let e = &mut env;
 
-    assert_eq!(
-      InetSocketAddress::new_wildcard_address(e, 1234).to_std(e),
-      "0.0.0.0:1234".parse().unwrap()
-    );
+    assert_eq!(InetSocketAddress::new_wildcard_address(e, 1234).to_std(e),
+               "0.0.0.0:1234".parse().unwrap());
 
     let local = InetAddress::from_std(e, IpAddr::from(Ipv4Addr::LOCALHOST));
     assert_eq!(local.to_std(e), "127.0.0.1".parse::<IpAddr>().unwrap());
-    assert_eq!(
-      InetSocketAddress::new(e, local, 1234).to_std(e),
-      "127.0.0.1:1234".parse::<SocketAddr>().unwrap()
-    );
+    assert_eq!(InetSocketAddress::new(e, local, 1234).to_std(e),
+               "127.0.0.1:1234".parse::<SocketAddr>().unwrap());
 
     let local = InetAddress::from_std(e, IpAddr::from(Ipv6Addr::LOCALHOST));
     assert_eq!(local.to_std(e), "::1".parse::<IpAddr>().unwrap());
-    assert_eq!(
-      InetSocketAddress::new(e, local, 1234).to_std(e),
-      "[::1]:1234".parse::<SocketAddr>().unwrap()
-    );
+    assert_eq!(InetSocketAddress::new(e, local, 1234).to_std(e),
+               "[::1]:1234".parse::<SocketAddr>().unwrap());
   }
 
   #[test]
