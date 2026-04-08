@@ -27,8 +27,7 @@ use self::no_repeat::{BLOCK1, BLOCK2};
 /// An iterator over owned [`Opt`]s
 #[derive(Debug, Clone)]
 pub struct OptIter<M, I>
-where
-  M: OptionMap,
+  where M: OptionMap
 {
   iter: I,
   last_seen_num: OptNumber,
@@ -39,8 +38,7 @@ where
 /// An iterator over [`OptRef`]s
 #[derive(Debug, Clone)]
 pub struct OptRefIter<'a, M, I>
-where
-  M: OptionMap,
+  where M: OptionMap
 {
   iter: I,
   last_seen_num: OptNumber,
@@ -49,9 +47,8 @@ where
 }
 
 impl<M, I> Iterator for OptIter<M, I>
-where
-  I: Iterator<Item = (OptNumber, M::OptValues)>,
-  M: OptionMap,
+  where I: Iterator<Item = (OptNumber, M::OptValues)>,
+        M: OptionMap
 {
   type Item = Opt<M::OptValue>;
 
@@ -64,10 +61,8 @@ where
         let delta = OptDelta(delta as u16);
         self.last_seen_num = num;
 
-        Some(Opt {
-          value: values.into_iter().next().unwrap(),
-          delta,
-        })
+        Some(Opt { value: values.into_iter().next().unwrap(),
+                   delta })
       },
       | _ => {
         let mut values = values.into_iter();
@@ -89,17 +84,15 @@ where
 }
 
 impl<'a, M, I> Iterator for OptRefIter<'a, M, I>
-where
-  I: Iterator<Item = (&'a OptNumber, &'a M::OptValues)>,
-  Self: 'a,
-  M: 'a + OptionMap,
+  where I: Iterator<Item = (&'a OptNumber, &'a M::OptValues)>,
+        Self: 'a,
+        M: 'a + OptionMap
 {
   type Item = OptRef<'a, M::OptValue>;
 
   fn next(&mut self) -> Option<Self::Item> {
-    let (num, values, ix) = self
-      .repeated
-      .or_else(|| self.iter.next().map(|(a, b)| (*a, b, 0)))?;
+    let (num, values, ix) = self.repeated
+                                .or_else(|| self.iter.next().map(|(a, b)| (*a, b, 0)))?;
 
     match values.len() {
       | 1 => {
@@ -107,10 +100,8 @@ where
         let delta = OptDelta(delta as u16);
         self.last_seen_num = num;
 
-        Some(OptRef {
-          value: &values[0],
-          delta,
-        })
+        Some(OptRef { value: &values[0],
+                      delta })
       },
       | _ => {
         if let Some(value) = values.get(ix) {
@@ -132,8 +123,7 @@ where
 
 /// Generalization of `HashMap<OptNumber, OptValue<Vec<u8>>>`
 pub trait OptionMap
-where
-  Self: Map<OptNumber, Self::OptValues>,
+  where Self: Map<OptNumber, Self::OptValues>
 {
   /// Byte array for option values
   type OptValue: Array<Item = u8> + AppendCopy<u8>;
@@ -145,22 +135,18 @@ where
 
   /// Iterate over the map, yielding raw option structures
   fn opts(self) -> OptIter<Self, Self::IntoIter> {
-    OptIter {
-      iter: self.into_iter(),
-      last_seen_num: OptNumber(0),
-      __p: PhantomData,
-      repeated: None,
-    }
+    OptIter { iter: self.into_iter(),
+              last_seen_num: OptNumber(0),
+              __p: PhantomData,
+              repeated: None }
   }
 
   /// Iterate over the map, yielding raw option structures
   fn opt_refs(&self) -> OptRefIter<'_, Self, toad_map::Iter<'_, OptNumber, Self::OptValues>> {
-    OptRefIter {
-      iter: self.iter(),
-      last_seen_num: OptNumber(0),
-      __p: PhantomData,
-      repeated: None,
-    }
+    OptRefIter { iter: self.iter(),
+                 last_seen_num: OptNumber(0),
+                 __p: PhantomData,
+                 repeated: None }
   }
 }
 
@@ -174,11 +160,9 @@ type ArrayVecMap<const N: usize, K, V> = ArrayVec<[(K, V); N]>;
 
 impl<const MAX_OPTS: usize, const MAX_INSTANCES: usize, const MAX_BYTES_PER_INSTANCE: usize>
   OptionMap
-  for ArrayVecMap<
-    MAX_OPTS,
-    OptNumber,
-    ArrayVec<[OptValue<ArrayVec<[u8; MAX_BYTES_PER_INSTANCE]>>; MAX_INSTANCES]>,
-  >
+  for ArrayVecMap<MAX_OPTS,
+                  OptNumber,
+                  ArrayVec<[OptValue<ArrayVec<[u8; MAX_BYTES_PER_INSTANCE]>>; MAX_INSTANCES]>>
 {
   type OptValue = ArrayVec<[u8; MAX_BYTES_PER_INSTANCE]>;
   type OptValues = ArrayVec<[OptValue<Self::OptValue>; MAX_INSTANCES]>;
@@ -215,11 +199,10 @@ impl<B: AsRef<[u8]>, M: OptionMap> TryConsumeBytes<B> for M {
   }
 }
 
-pub(crate) fn parse_opt_len_or_delta<A: AsRef<[u8]>>(
-  head: u8,
-  bytes: &mut Cursor<A>,
-  reserved_err: OptParseError,
-) -> Result<u16, OptParseError> {
+pub(crate) fn parse_opt_len_or_delta<A: AsRef<[u8]>>(head: u8,
+                                                     bytes: &mut Cursor<A>,
+                                                     reserved_err: OptParseError)
+                                                     -> Result<u16, OptParseError> {
   match head {
     | 13 => {
       let n = bytes.next().ok_or_else(OptParseError::eof)?;
@@ -253,33 +236,26 @@ pub struct Opt<C> {
   pub value: OptValue<C>,
 }
 
-impl<C> PartialOrd for Opt<C>
-where
-  C: Array<Item = u8>,
+impl<C> PartialOrd for Opt<C> where C: Array<Item = u8>
 {
   fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
     Some(self.cmp(other))
   }
 }
 
-impl<C> PartialEq for Opt<C>
-where
-  C: Array<Item = u8>,
+impl<C> PartialEq for Opt<C> where C: Array<Item = u8>
 {
   fn eq(&self, other: &Self) -> bool {
     self.delta.eq(&other.delta) && self.value.eq(&other.value)
   }
 }
 
-impl<C> Ord for Opt<C>
-where
-  C: Array<Item = u8>,
+impl<C> Ord for Opt<C> where C: Array<Item = u8>
 {
   fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-    self
-      .delta
-      .cmp(&other.delta)
-      .then_with(|| self.value.cmp(&other.value))
+    self.delta
+        .cmp(&other.delta)
+        .then_with(|| self.value.cmp(&other.value))
   }
 }
 
@@ -293,33 +269,26 @@ pub struct OptRef<'a, C> {
   pub value: &'a OptValue<C>,
 }
 
-impl<'a, C> PartialOrd for OptRef<'a, C>
-where
-  C: Array<Item = u8>,
+impl<'a, C> PartialOrd for OptRef<'a, C> where C: Array<Item = u8>
 {
   fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
     Some(self.cmp(other))
   }
 }
 
-impl<'a, C> PartialEq for OptRef<'a, C>
-where
-  C: Array<Item = u8>,
+impl<'a, C> PartialEq for OptRef<'a, C> where C: Array<Item = u8>
 {
   fn eq(&self, other: &Self) -> bool {
     self.delta.eq(&other.delta) && self.value.eq(other.value)
   }
 }
 
-impl<'a, C> Ord for OptRef<'a, C>
-where
-  C: Array<Item = u8>,
+impl<'a, C> Ord for OptRef<'a, C> where C: Array<Item = u8>
 {
   fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-    self
-      .delta
-      .cmp(&other.delta)
-      .then_with(|| self.value.cmp(other.value))
+    self.delta
+        .cmp(&other.delta)
+        .then_with(|| self.value.cmp(other.value))
   }
 }
 
@@ -352,10 +321,8 @@ impl<'a, C: Array<Item = u8>> Len for OptRef<'a, C> {
 
 impl<'a, V> From<&'a Opt<V>> for OptRef<'a, V> {
   fn from(o: &'a Opt<V>) -> Self {
-    Self {
-      value: &o.value,
-      delta: o.delta,
-    }
+    Self { value: &o.value,
+           delta: o.delta }
   }
 }
 
@@ -508,8 +475,8 @@ impl OptNumber {
   /// Whether this option should be included in the [`Message::cache_key`]
   pub fn include_in_cache_key(&self) -> bool {
     self.when_option_changes() == WhenOptionChanges::ResponseChanges
-      && self != &BLOCK1
-      && self != &BLOCK2
+    && self != &BLOCK1
+    && self != &BLOCK2
   }
 }
 
@@ -517,27 +484,21 @@ impl OptNumber {
 #[derive(Default, Clone, Debug)]
 pub struct OptValue<C>(pub C);
 
-impl<C> PartialOrd for OptValue<C>
-where
-  C: Array<Item = u8>,
+impl<C> PartialOrd for OptValue<C> where C: Array<Item = u8>
 {
   fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
     self.0.iter().partial_cmp(other.0.iter())
   }
 }
 
-impl<C> PartialEq for OptValue<C>
-where
-  C: Array<Item = u8>,
+impl<C> PartialEq for OptValue<C> where C: Array<Item = u8>
 {
   fn eq(&self, other: &Self) -> bool {
     self.0.iter().eq(other.0.iter())
   }
 }
 
-impl<C> Ord for OptValue<C>
-where
-  C: Array<Item = u8>,
+impl<C> Ord for OptValue<C> where C: Array<Item = u8>
 {
   fn cmp(&self, other: &Self) -> core::cmp::Ordering {
     self.0.iter().cmp(other.0.iter())
@@ -546,18 +507,14 @@ where
 
 impl<C> Eq for OptValue<C> where C: Array<Item = u8> {}
 
-impl<C> Hash for OptValue<C>
-where
-  C: Array<Item = u8>,
+impl<C> Hash for OptValue<C> where C: Array<Item = u8>
 {
   fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
     state.write(&self.0)
   }
 }
 
-impl<C> OptValue<C>
-where
-  C: Array<Item = u8>,
+impl<C> OptValue<C> where C: Array<Item = u8>
 {
   /// Convert a reference to a OptValue to a byte slice
   pub fn as_bytes(&self) -> &[u8] {
@@ -565,9 +522,7 @@ where
   }
 }
 
-impl<C> FromIterator<u8> for OptValue<C>
-where
-  C: FromIterator<u8>,
+impl<C> FromIterator<u8> for OptValue<C> where C: FromIterator<u8>
 {
   fn from_iter<T: IntoIterator<Item = u8>>(iter: T) -> Self {
     Self(iter.into_iter().collect::<C>())
@@ -578,30 +533,26 @@ impl<Bytes: AsRef<[u8]>, V: Array<Item = u8> + AppendCopy<u8>> TryConsumeBytes<B
   type Error = OptParseError;
 
   fn try_consume_bytes(bytes: &mut Cursor<Bytes>) -> Result<Self, Self::Error> {
-    let byte1 = bytes
-      .next()
-      .ok_or(OptParseError::OptionsExhausted)
-      .and_then(|b| {
-        if b == 0b11111111 {
-          Err(OptParseError::OptionsExhausted)
-        } else {
-          Ok(b)
-        }
-      })?;
+    let byte1 = bytes.next()
+                     .ok_or(OptParseError::OptionsExhausted)
+                     .and_then(|b| {
+                       if b == 0b11111111 {
+                         Err(OptParseError::OptionsExhausted)
+                       } else {
+                         Ok(b)
+                       }
+                     })?;
 
     // NOTE: Delta **MUST** be consumed before Value. see comment on `opt_len_or_delta` for more info
-    let delta = parse_opt_len_or_delta(
-      byte1 >> 4,
-      bytes,
-      OptParseError::OptionDeltaReservedValue(15),
-    )?;
+    let delta = parse_opt_len_or_delta(byte1 >> 4,
+                                       bytes,
+                                       OptParseError::OptionDeltaReservedValue(15))?;
     let delta = OptDelta(delta);
 
-    let len = parse_opt_len_or_delta(
-      byte1 & 0b00001111,
-      bytes,
-      OptParseError::ValueLengthReservedValue(15),
-    )? as usize;
+    let len = parse_opt_len_or_delta(byte1 & 0b00001111,
+                                     bytes,
+                                     OptParseError::ValueLengthReservedValue(15))?
+              as usize;
 
     let mut value = V::reserve(len);
     value.append_copy(bytes.take(len));
@@ -626,54 +577,34 @@ mod tests {
   fn parse_opt() {
     let mut opt_bytes = Cursor::new([0b00010001, 0b00000001]);
     let opt = Opt::try_consume_bytes(&mut opt_bytes).unwrap();
-    assert_eq!(
-      opt,
-      Opt {
-        delta: OptDelta(1),
-        value: OptValue(vec![1])
-      }
-    );
+    assert_eq!(opt,
+               Opt { delta: OptDelta(1),
+                     value: OptValue(vec![1]) });
 
     let mut opt_bytes = Cursor::new([0b11010001, 0b00000001, 0b00000001]);
     let opt = Opt::try_consume_bytes(&mut opt_bytes).unwrap();
-    assert_eq!(
-      opt,
-      Opt {
-        delta: OptDelta(14),
-        value: OptValue(vec![1])
-      }
-    );
+    assert_eq!(opt,
+               Opt { delta: OptDelta(14),
+                     value: OptValue(vec![1]) });
 
     let mut opt_bytes = Cursor::new([0b11100001, 0b00000000, 0b00000001, 0b00000001]);
     let opt = Opt::try_consume_bytes(&mut opt_bytes).unwrap();
-    assert_eq!(
-      opt,
-      Opt {
-        delta: OptDelta(270),
-        value: OptValue(vec![1])
-      }
-    );
+    assert_eq!(opt,
+               Opt { delta: OptDelta(270),
+                     value: OptValue(vec![1]) });
 
     let mut opt_bytes = Cursor::new([0b00000001, 0b00000001]);
     let opt = Opt::try_consume_bytes(&mut opt_bytes).unwrap();
-    assert_eq!(
-      opt,
-      Opt {
-        delta: OptDelta(0),
-        value: OptValue(vec![1])
-      }
-    );
+    assert_eq!(opt,
+               Opt { delta: OptDelta(0),
+                     value: OptValue(vec![1]) });
 
     let mut opt_bytes = Cursor::new([0b00000001, 0b00000001, 0b00010001, 0b00000011, 0b11111111]);
     let opt =
       BTreeMap::<OptNumber, Vec<OptValue<Vec<u8>>>>::try_consume_bytes(&mut opt_bytes).unwrap();
-    assert_eq!(
-      opt,
-      BTreeMap::from([
-        (OptNumber(0), vec![OptValue(vec![1])]),
-        (OptNumber(1), vec![OptValue(vec![3])])
-      ])
-    );
+    assert_eq!(opt,
+               BTreeMap::from([(OptNumber(0), vec![OptValue(vec![1])]),
+                               (OptNumber(1), vec![OptValue(vec![3])])]));
   }
 
   #[test]
@@ -690,40 +621,33 @@ mod tests {
     // elective, safe-to-fwd, no-cache-key
     let size1 = OptNumber(60);
 
-    [&if_match, &uri_host].into_iter().for_each(|num| {
-      assert_eq!(num.must_be_processed(), OptionMustBeProcessed::Yes);
-    });
+    [&if_match, &uri_host].into_iter()
+                          .for_each(|num| {
+                            assert_eq!(num.must_be_processed(), OptionMustBeProcessed::Yes);
+                          });
 
     [&etag, &size1].into_iter().for_each(|num| {
-      assert_eq!(num.must_be_processed(), OptionMustBeProcessed::No);
-    });
+                                 assert_eq!(num.must_be_processed(), OptionMustBeProcessed::No);
+                               });
 
     [&if_match, &etag, &size1].into_iter().for_each(|num| {
-      assert_eq!(
-        num.when_unsupported_by_proxy(),
-        WhenOptionUnsupportedByProxy::Forward
-      );
-    });
+                                            assert_eq!(num.when_unsupported_by_proxy(),
+                                                       WhenOptionUnsupportedByProxy::Forward);
+                                          });
 
     [&uri_host].into_iter().for_each(|num| {
-      assert_eq!(
-        num.when_unsupported_by_proxy(),
-        WhenOptionUnsupportedByProxy::Error
-      );
-    });
+                             assert_eq!(num.when_unsupported_by_proxy(),
+                                        WhenOptionUnsupportedByProxy::Error);
+                           });
 
     [&if_match, &uri_host, &etag].into_iter().for_each(|num| {
-      assert_eq!(
-        num.when_option_changes(),
-        WhenOptionChanges::ResponseChanges
-      );
-    });
+                                               assert_eq!(num.when_option_changes(),
+                                                          WhenOptionChanges::ResponseChanges);
+                                             });
 
     [&size1].into_iter().for_each(|num| {
-      assert_eq!(
-        num.when_option_changes(),
-        WhenOptionChanges::ResponseDoesNotChange
-      );
-    });
+                          assert_eq!(num.when_option_changes(),
+                                     WhenOptionChanges::ResponseDoesNotChange);
+                        });
   }
 }
